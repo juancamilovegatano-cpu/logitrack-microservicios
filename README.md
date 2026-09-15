@@ -3,6 +3,17 @@
 Implementación funcional de 2 de los 10 microservicios del documento de arquitectura
 (fichas 3.2 y 3.6). Python 3.12 · FastAPI · SQLAlchemy 2 · PostgreSQL 16 · RabbitMQ · Docker.
 
+## Arquitectura
+
+![Arquitectura de LogiTrack — Fleet y Maintenance Service](docs/arquitectura.png)
+
+> Fuente vectorial editable: [`docs/arquitectura.svg`](docs/arquitectura.svg)
+
+Los dos servicios **nunca comparten base de datos** y se comunican de dos formas
+distintas, cada una donde corresponde: por **eventos** cuando el emisor puede
+seguir trabajando sin esperar, y por **REST síncrono** en el único punto donde el
+llamador no puede continuar sin la respuesta. El detalle está más abajo.
+
 ## Por qué estos dos
 
 | Criterio | Fleet (3.2) | Maintenance (3.6) |
