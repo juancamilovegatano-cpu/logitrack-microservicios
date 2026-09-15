@@ -1,0 +1,85 @@
+name: logitrack
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: logitrack
+      RABBITMQ_DEFAULT_PASS: logitrack
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # consola web: http://localhost:15672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  fleet-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: logitrack
+      POSTGRES_PASSWORD: logitrack
+      POSTGRES_DB: fleet_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - fleet_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logitrack -d fleet_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  maintenance-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: logitrack
+      POSTGRES_PASSWORD: logitrack
+      POSTGRES_DB: maintenance_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - maintenance_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logitrack -d maintenance_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  fleet-service:
+    build: ./fleet-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://logitrack:logitrack@fleet-db:5432/fleet_db
+      RABBITMQ_URL: amqp://logitrack:logitrack@rabbitmq:5672/
+    ports:
+      - "8001:8000"
+    depends_on:
+      fleet-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  maintenance-service:
+    build: ./maintenance-service
+    environment:
+      DATABASE_URL: postgresql+psycopg2://logitrack:logitrack@maintenance-db:5432/maintenance_db
+      RABBITMQ_URL: amqp://logitrack:logitrack@rabbitmq:5672/
+      # Comunicación REST SÍNCRONA: Maintenance es cliente de Fleet.
+      # Se resuelve por el DNS interno de la red de Docker, no por localhost.
+      FLEET_BASE_URL: http://fleet-service:8000
+    ports:
+      - "8002:8000"
+    depends_on:
+      maintenance-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      # Arranca después de Fleet, pero NO depende de él para funcionar:
+      # si Fleet cae luego, el circuit breaker aplica el plan B.
+      fleet-service:
+        condition: service_started
+
+volumes:
+  fleet_data:
+  maintenance_data:
