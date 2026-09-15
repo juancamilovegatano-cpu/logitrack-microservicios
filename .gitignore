@@ -1,0 +1,11 @@
+﻿__pycache__/
+*.pyc
+.env
+.venv/
+
+# Auxiliares locales, no forman parte del entregable
+logitrack-run.log
+run.ps1
+EJECUTAR.bat
+crear_repo.ps1
+CREAR_REPO.bat
