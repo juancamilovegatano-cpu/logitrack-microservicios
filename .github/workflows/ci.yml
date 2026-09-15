@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         servicio: [fleet-service, maintenance-service]
@@ -36,7 +39,7 @@ jobs:
         working-directory: ${{ matrix.servicio }}
         run: |
           pip install -r requirements.txt
-          pip install ruff httpx
+          pip install ruff==0.16.7 httpx
 
       - name: Lint
         working-directory: ${{ matrix.servicio }}

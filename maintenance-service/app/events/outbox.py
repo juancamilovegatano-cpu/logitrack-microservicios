@@ -2,7 +2,7 @@
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -33,7 +33,7 @@ def _publicar_lote(canal) -> int:
         for fila in pendientes:
             evento = bus.sobre(tipo=fila.tipo, agregado_id=fila.agregado_id, datos=fila.payload)
             bus.publicar(canal, settings.exchange_propio, evento)
-            fila.publicado_en = datetime.now(timezone.utc)
+            fila.publicado_en = datetime.now(UTC)
         db.commit()
         return len(pendientes)
     finally:

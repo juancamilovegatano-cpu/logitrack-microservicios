@@ -11,7 +11,7 @@ import json
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pika
 
@@ -59,7 +59,7 @@ def sobre(tipo: str, agregado_id, datos: dict, event_id: str | None = None) -> d
     return {
         "event_id": event_id or str(uuid.uuid4()),
         "tipo": tipo,
-        "ocurrido_en": datetime.now(timezone.utc).isoformat(),
+        "ocurrido_en": datetime.now(UTC).isoformat(),
         "origen": settings.service_name,
         "agregado_id": str(agregado_id),
         "datos": datos,

@@ -106,10 +106,14 @@ def registrar_intervencion(datos: schemas.IntervencionCrear, db: Session = Depen
         intervencion = crud.registrar_intervencion(db, datos)
     except LookupError:
         db.rollback()
-        raise HTTPException(404, {"error": "programa_no_encontrado", "mensaje": str(datos.programa_id)})
+        raise HTTPException(
+            404, {"error": "programa_no_encontrado", "mensaje": str(datos.programa_id)}
+        ) from None
     except ValueError as exc:
         db.rollback()
-        raise HTTPException(409, {"error": str(exc), "mensaje": str(datos.programa_id)})
+        raise HTTPException(
+            409, {"error": str(exc), "mensaje": str(datos.programa_id)}
+        ) from exc
     db.commit()  # intervención + programa + outbox en la misma transacción
     db.refresh(intervencion)
     return intervencion

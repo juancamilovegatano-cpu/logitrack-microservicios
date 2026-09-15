@@ -6,7 +6,7 @@ y se publican cuando vuelva: no se pierde ningún evento.
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -43,7 +43,7 @@ def _publicar_lote(canal) -> int:
                 event_id=str(fila.payload.get("event_id")) if fila.payload.get("event_id") else None,
             )
             bus.publicar(canal, settings.exchange_propio, evento)
-            fila.publicado_en = datetime.now(timezone.utc)
+            fila.publicado_en = datetime.now(UTC)
         db.commit()
         return len(pendientes)
     finally:

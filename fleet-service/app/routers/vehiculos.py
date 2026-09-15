@@ -40,7 +40,9 @@ def crear(datos: schemas.VehiculoCrear, response: Response, db: Session = Depend
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(409, {"error": "placa_duplicada", "mensaje": datos.placa})
+        raise HTTPException(
+            409, {"error": "placa_duplicada", "mensaje": datos.placa}
+        ) from None
     db.refresh(vehiculo)
     response.headers["Location"] = f"/api/v1/vehiculos/{vehiculo.id}"
     return vehiculo

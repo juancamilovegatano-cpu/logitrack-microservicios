@@ -43,5 +43,5 @@ def ready():
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         return {"status": "ready"}
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - readiness debe reportar 503 ante CUALQUIER fallo
         return JSONResponse({"status": "not_ready", "detalle": str(exc)}, status_code=503)

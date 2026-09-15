@@ -58,7 +58,8 @@ def abrir_alerta(
     programa = ProgramaMantenimiento(
         regla_id=regla.id,
         vehiculo_id=vehiculo_id,
-        fecha_prevista=date.today() + timedelta(days=DIAS_POR_PRIORIDAD.get(regla.prioridad, 3)),
+        # Fecha de calendario del taller, no un instante: la zona horaria no aplica.
+        fecha_prevista=date.today() + timedelta(days=DIAS_POR_PRIORIDAD.get(regla.prioridad, 3)),  # noqa: DTZ011
         km_previsto=km_actual,
         estado="pendiente",
         origen="alerta",
@@ -171,7 +172,7 @@ def programa_de_vehiculo(db: Session, vehiculo_id: uuid.UUID) -> list[ProgramaMa
 
 
 def proximos(db: Session, dias: int) -> list[ProgramaMantenimiento]:
-    limite = date.today() + timedelta(days=dias)
+    limite = date.today() + timedelta(days=dias)  # noqa: DTZ011 - fecha de calendario, no instante
     return list(
         db.scalars(
             select(ProgramaMantenimiento)

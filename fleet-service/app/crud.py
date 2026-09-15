@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -35,7 +35,7 @@ def vehiculos_disponibles(
     if hazmat is not None:
         q = q.where(Vehiculo.certificado_hazmat.is_(hazmat))
     # el seguro vencido inhabilita el vehículo aunque su estado diga disponible
-    q = q.where(Vehiculo.vencimiento_seguro >= datetime.now(timezone.utc).date())
+    q = q.where(Vehiculo.vencimiento_seguro >= datetime.now(UTC).date())
     return list(db.scalars(q.order_by(Vehiculo.capacidad_kg)).all())
 
 
@@ -74,7 +74,7 @@ def marcar_procesado(db: Session, event_id: str, tipo: str, detalle: str = ""):
 
 
 def disponibilidad_conductor(db: Session, conductor: Conductor) -> dict:
-    ahora = datetime.now(timezone.utc)
+    ahora = datetime.now(UTC)
     asignacion = db.scalars(
         select(Asignacion)
         .where(

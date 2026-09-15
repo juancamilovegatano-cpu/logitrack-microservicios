@@ -35,7 +35,9 @@ def crear(datos: schemas.ConductorCrear, db: Session = Depends(get_db)):
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(409, {"error": "licencia_duplicada", "mensaje": datos.numero_licencia})
+        raise HTTPException(
+            409, {"error": "licencia_duplicada", "mensaje": datos.numero_licencia}
+        ) from None
     db.refresh(conductor)
     return _salida(conductor)
 
