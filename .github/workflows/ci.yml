@@ -1,0 +1,71 @@
+﻿name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        servicio: [fleet-service, maintenance-service]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: logitrack
+          POSTGRES_PASSWORD: logitrack
+          POSTGRES_DB: test_db
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U logitrack"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        working-directory: ${{ matrix.servicio }}
+        run: |
+          pip install -r requirements.txt
+          pip install ruff httpx
+
+      - name: Lint
+        working-directory: ${{ matrix.servicio }}
+        run: ruff check app
+
+      - name: Arranque real contra PostgreSQL (crea el esquema y responde /ready)
+        working-directory: ${{ matrix.servicio }}
+        env:
+          DATABASE_URL: postgresql+psycopg2://logitrack:logitrack@localhost:5432/test_db
+          EVENTS_ENABLED: "false"
+        run: |
+          uvicorn app.main:app --port 8000 &
+          for i in $(seq 1 20); do
+            curl -fsS http://localhost:8000/ready && break || sleep 1
+          done
+          curl -fsS http://localhost:8000/ready
+          curl -fsS http://localhost:8000/openapi.json > /dev/null
+
+      - name: Build de la imagen Docker
+        run: docker build -t ghcr.io/${{ github.repository }}/${{ matrix.servicio }}:${{ github.sha }} ./${{ matrix.servicio }}
+
+      - name: Login en GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push de la imagen
+        if: github.ref == 'refs/heads/main'
+        run: docker push ghcr.io/${{ github.repository }}/${{ matrix.servicio }}:${{ github.sha }}
