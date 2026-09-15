@@ -25,3 +25,8 @@ ignore = [
     # de Python, la resuelve por petición. Aquí la regla no aplica.
     "B008",
 ]
+
+[lint.isort]
+# `app` es el paquete propio del servicio, no una dependencia externa:
+# sin esto, ruff lo agrupa junto a fastapi y sqlalchemy.
+known-first-party = ["app"]

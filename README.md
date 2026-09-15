@@ -166,6 +166,42 @@ GET    /api/v1/mantenimiento/dependencias           <- estado del circuit breake
 GET    /health · /ready
 ```
 
+## Pruebas
+
+**61 pruebas** contra un PostgreSQL real, no contra SQLite ni dobles de la base: los modelos usan
+tipos propios de PostgreSQL (`UUID`, `JSONB`, `ENUM`) y una prueba que no los ejercita no dice nada
+sobre el esquema que se despliega.
+
+```bash
+docker compose up -d fleet-db maintenance-db     # basta con las bases
+
+cd fleet-service
+pip install -r requirements-dev.txt
+pytest                                            # 19 pruebas
+
+cd ../maintenance-service
+pip install -r requirements-dev.txt
+pytest                                            # 42 pruebas
+```
+
+Por defecto apuntan a `test_db` en `localhost:5432`; se cambia con `DATABASE_URL`.
+
+| Archivo | Qué cubre |
+|---|---|
+| `fleet-service/tests/test_vehiculos.py` | validaciones de entrada, 404/409/422, filtros de disponibilidad, seguro vencido |
+| `fleet-service/tests/test_outbox_e_idempotencia.py` | la fila del outbox se escribe en la misma transacción; sin evento redundante; evento repetido descartado |
+| `maintenance-service/tests/test_reglas.py` | comparadores `mayor`/`menor`, umbral exacto, filtro por tipo de vehículo, orden por prioridad |
+| `maintenance-service/tests/test_circuit_breaker.py` | los tres estados, la ventana deslizante, la petición de prueba del semiabierto |
+| `maintenance-service/tests/test_cliente_fleet.py` | timeout, reintentos, 404 que no abre el circuito, recuperación ante un 500 pasajero |
+| `maintenance-service/tests/test_consumidor.py` | los tres desenlaces de la consulta síncrona, el plan B y la idempotencia |
+
+Las pruebas corren con el bus apagado (`EVENTS_ENABLED=false`): lo que se verifica es que la fila del
+outbox quede escrita en la transacción correcta. Que RabbitMQ entregue el mensaje es responsabilidad
+de RabbitMQ, no de este código.
+
+El cliente de Fleet se sustituye por un transporte falso de `httpx`, para poder provocar a voluntad
+los casos que contra un servicio real son difíciles de reproducir: timeouts, 500 intermitentes y 404.
+
 ## Patrones implementados
 
 | Patrón | Dónde |
@@ -207,5 +243,6 @@ GET    /health · /ready
 - Validación de JWT: hoy los servicios confían en que el API Gateway ya validó el token.
 - Alembic para migraciones versionadas.
 - OpenTelemetry (`trace_id` propagado en el sobre del evento).
-- Tests con pytest + testcontainers; el CI hoy valida lint, arranque real contra
-  PostgreSQL y build de la imagen.
+- Cobertura medida con `pytest-cov` y un umbral mínimo exigido en el CI.
+- Pruebas de contrato entre los dos servicios (por ejemplo con Pact): hoy el doble de Fleet
+  en las pruebas de Maintenance podría desincronizarse de la API real sin que nadie lo note.

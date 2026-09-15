@@ -37,13 +37,18 @@ jobs:
 
       - name: Instalar dependencias
         working-directory: ${{ matrix.servicio }}
-        run: |
-          pip install -r requirements.txt
-          pip install ruff==0.16.7 httpx
+        run: pip install -r requirements-dev.txt
 
       - name: Lint
         working-directory: ${{ matrix.servicio }}
-        run: ruff check app
+        run: ruff check app tests
+
+      - name: Pruebas unitarias y de integracion (pytest contra PostgreSQL real)
+        working-directory: ${{ matrix.servicio }}
+        env:
+          DATABASE_URL: postgresql+psycopg2://logitrack:logitrack@localhost:5432/test_db
+          EVENTS_ENABLED: "false"
+        run: pytest -q
 
       - name: Arranque real contra PostgreSQL (crea el esquema y responde /ready)
         working-directory: ${{ matrix.servicio }}
