@@ -44,6 +44,25 @@ python scripts/demo_e2e.py   # prueba end-to-end de los 9 pasos
 - Maintenance: http://localhost:8002/docs
 - RabbitMQ: http://localhost:15672 (logitrack / logitrack)
 
+## Colección de Postman
+
+[`docs/LogiTrack.postman_collection.json`](docs/LogiTrack.postman_collection.json) — 19 peticiones
+en 3 carpetas, listas para importar (`Import` → arrastrar el archivo).
+
+Las variables `vehiculo_id`, `conductor_id`, `regla_id` y `programa_id` se llenan solas al lanzar
+las peticiones en orden, así que el recorrido se encadena sin copiar y pegar UUIDs. Cada petición
+lleva en su descripción qué demuestra y qué códigos de error puede devolver.
+
+Dos peticiones concentran lo que hay que enseñar:
+
+- **`FICHA COMBINADA`** — un solo endpoint devolviendo datos de las dos bases a la vez, con la
+  llamada REST síncrona a Fleet en el medio.
+- **`Estado del circuit breaker`** — trae instrucciones para abrir el circuito en vivo apagando
+  Fleet con `docker compose stop fleet-service`.
+
+El flujo completo que cruza los dos servicios arranca con un evento AMQP, que Postman no puede
+publicar: para eso está `python scripts/demo_e2e.py`, que recorre los 13 pasos.
+
 ## Los dos estilos de comunicación
 
 El documento (sección 05) fija la regla: *"si el que llama no puede continuar sin

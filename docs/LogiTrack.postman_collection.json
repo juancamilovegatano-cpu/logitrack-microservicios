@@ -1,0 +1,636 @@
+{
+  "info": {
+    "name": "LogiTrack — Fleet & Maintenance",
+    "_postman_id": "c7f1a2d4-5b3e-4a8c-9d6f-1e2b3c4d5e6f",
+    "description": "Coleccion de los dos microservicios implementados de LogiTrack\n(fichas 3.2 y 3.6 del documento de arquitectura).\n\nREQUISITO: los contenedores deben estar corriendo.\n    docker compose up -d\n    python scripts/seed.py\n\nVARIABLES: fleet_url y maint_url apuntan a localhost. Las variables\nvehiculo_id, conductor_id, regla_id y programa_id se llenan solas al\nlanzar las peticiones en orden.\n\nORDEN SUGERIDO PARA LA SUSTENTACION:\n  1. Carpeta 00: los dos servicios responden.\n  2. Fleet > Crear vehiculo (guarda vehiculo_id).\n  3. Fleet > Listar disponibles: ahi esta.\n  4. Maintenance > FICHA COMBINADA: datos de las dos bases a la vez.\n  5. Maintenance > Estado del circuit breaker.\n  6. Fleet > Cambiar estado: mira el evento en RabbitMQ (localhost:15672).\n  7. Fleet > Listar disponibles otra vez: ya no aparece.\n\nNOTA: el flujo completo cruzando los dos servicios arranca con un evento\nde telemetria por AMQP, que Postman no puede publicar. Para eso usa\n'python scripts/demo_e2e.py', que recorre los 13 pasos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 · Salud de los servicios",
+      "item": [
+        {
+          "name": "Fleet · /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fleet_url}}/health",
+              "host": [
+                "{{fleet_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Liveness. Responde 200 si el proceso esta vivo. Lo usa el HEALTHCHECK de Docker."
+          },
+          "response": []
+        },
+        {
+          "name": "Fleet · /ready",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fleet_url}}/ready",
+              "host": [
+                "{{fleet_url}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            },
+            "description": "Readiness. Ejecuta SELECT 1 contra fleet_db. Devuelve 503 si la base no responde."
+          },
+          "response": []
+        },
+        {
+          "name": "Maintenance · /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{maint_url}}/health",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Liveness del servicio de mantenimiento."
+          },
+          "response": []
+        },
+        {
+          "name": "Maintenance · /ready",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{maint_url}}/ready",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            },
+            "description": "Readiness. Ejecuta SELECT 1 contra maintenance_db."
+          },
+          "response": []
+        }
+      ],
+      "description": "Liveness y readiness de los dos servicios."
+    },
+    {
+      "name": "01 · Fleet Service (8001)",
+      "item": [
+        {
+          "name": "Crear vehiculo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_url}}/api/v1/vehiculos",
+              "host": [
+                "{{fleet_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "vehiculos"
+              ]
+            },
+            "description": "Alta en el catalogo maestro. Devuelve 201 y la cabecera Location.\n409 si la placa ya existe (restriccion de unicidad en fleet_db).\n\nGuarda el id en la variable {{vehiculo_id}} para las peticiones siguientes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placa\": \"ABC123\",\n  \"tipo\": \"camion_rigido\",\n  \"capacidad_kg\": 8000,\n  \"capacidad_m3\": 30,\n  \"anio\": 2021,\n  \"vencimiento_seguro\": \"2027-07-12\",\n  \"refrigerado\": true,\n  \"certificado_hazmat\": false,\n  \"zona_operacion\": \"montería\",\n  \"km_actual\": 84000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const v = pm.response.json();",
+                  "pm.collectionVariables.set('vehiculo_id', v.id);",
+                  "console.log('vehiculo_id =', v.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar disponibles (consulta de Routing)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fleet_url}}/api/v1/vehiculos/disponibles?zona=montería&capacidad_min_kg=5000&refrigerado=true",
+              "host": [
+                "{{fleet_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "vehiculos",
+                "disponibles"
+              ],
+              "query": [
+                {
+                  "key": "zona",
+                  "value": "montería"
+                },
+                {
+                  "key": "capacidad_min_kg",
+                  "value": "5000"
+                },
+                {
+                  "key": "refrigerado",
+                  "value": "true"
+                },
+                {
+                  "key": "tipo",
+                  "value": "camion_rigido",
+                  "disabled": true
+                },
+                {
+                  "key": "hazmat",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "ESTA es la consulta REST sincrona que hace Routing antes de asignar una carga.\nFiltra por tipo, zona, capacidad minima, refrigerado y hazmat.\nSolo devuelve vehiculos en estado 'disponible'."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener vehiculo por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fleet_url}}/api/v1/vehiculos/{{vehiculo_id}}",
+              "host": [
+                "{{fleet_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "vehiculos",
+                "{{vehiculo_id}}"
+              ]
+            },
+            "description": "Consulta puntual. ES EL MISMO ENDPOINT que Maintenance llama por REST sincrono\ncuando necesita saber el tipo y la placa de un vehiculo.\n404 si el id no existe."
+          },
+          "response": []
+        },
+        {
+          "name": "Cambiar estado (publica evento)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_url}}/api/v1/vehiculos/{{vehiculo_id}}/estado",
+              "host": [
+                "{{fleet_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "vehiculos",
+                "{{vehiculo_id}}",
+                "estado"
+              ]
+            },
+            "description": "Cambia el estado y encola vehicle.status_changed en outbox_eventos, EN LA MISMA\nTRANSACCION. El hilo publicador lo envia al exchange logitrack.fleet.\n\nCompruebalo en la consola de RabbitMQ (localhost:15672), pestaña Exchanges.\nSi el estado nuevo es igual al actual, no publica evento redundante.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"fuera_servicio\",\n  \"motivo\": \"Revision programada en taller\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear conductor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{fleet_url}}/api/v1/conductores",
+              "host": [
+                "{{fleet_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "conductores"
+              ]
+            },
+            "description": "Alta de conductor con sus categorias de licencia. 409 si la licencia se repite.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Kevin Ayazo\",\n  \"numero_licencia\": \"LIC-001\",\n  \"certificacion_hazmat\": true,\n  \"categorias\": [\n    \"C2\",\n    \"C3\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('conductor_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Disponibilidad del conductor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fleet_url}}/api/v1/conductores/{{conductor_id}}/disponibilidad",
+              "host": [
+                "{{fleet_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "conductores",
+                "{{conductor_id}}",
+                "disponibilidad"
+              ]
+            },
+            "description": "Calcula si el conductor puede tomar un viaje: horas conducidas en la semana,\nhoras restantes y si ya tiene un vehiculo asignado."
+          },
+          "response": []
+        }
+      ],
+      "description": "Catalogo maestro de vehiculos y conductores. Ficha 3.2."
+    },
+    {
+      "name": "02 · Maintenance Service (8002)",
+      "item": [
+        {
+          "name": "Crear regla",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{maint_url}}/api/v1/mantenimiento/reglas",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mantenimiento",
+                "reglas"
+              ]
+            },
+            "description": "Define un umbral. 'tipo_vehiculo' en null significa que aplica a todos.\nSi se indica un tipo, la regla SOLO dispara para vehiculos de ese tipo, y eso\nsolo funciona porque Maintenance le pregunta el tipo a Fleet por REST sincrono.\n\ncomparador: 'mayor' o 'menor'. prioridad: 1 (urgente) a 5.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Sobrecalentamiento de motor\",\n  \"tipo_vehiculo\": null,\n  \"metrica\": \"temperatura_motor_c\",\n  \"umbral\": 105,\n  \"comparador\": \"mayor\",\n  \"prioridad\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('regla_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear regla POR TIPO de vehiculo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{maint_url}}/api/v1/mantenimiento/reglas",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mantenimiento",
+                "reglas"
+              ]
+            },
+            "description": "Regla que solo aplica a tractomulas. Sin la llamada REST sincrona a Fleet esta\nregla seria codigo muerto: el evento de telemetria no trae el tipo de vehiculo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Horas de motor tractomula\",\n  \"tipo_vehiculo\": \"tractomula\",\n  \"metrica\": \"horas_motor\",\n  \"umbral\": 500,\n  \"comparador\": \"mayor\",\n  \"prioridad\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar reglas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{maint_url}}/api/v1/mantenimiento/reglas",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mantenimiento",
+                "reglas"
+              ]
+            },
+            "description": "Catalogo completo de reglas, ordenado por prioridad."
+          },
+          "response": []
+        },
+        {
+          "name": "Alertas abiertas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{maint_url}}/api/v1/mantenimiento/alertas?estado=abierta",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mantenimiento",
+                "alertas"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "abierta"
+                }
+              ]
+            },
+            "description": "Alertas generadas por telemetria que aun no se cierran.\nFijate en el campo 'motivo': si trae la placa del vehiculo, es porque\nMaintenance se la pregunto a Fleet por REST sincrono."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "if (a.length) { pm.collectionVariables.set('programa_id', a[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Programa de un vehiculo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{maint_url}}/api/v1/mantenimiento/vehiculo/{{vehiculo_id}}/programa",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mantenimiento",
+                "vehiculo",
+                "{{vehiculo_id}}",
+                "programa"
+              ]
+            },
+            "description": "Historial de mantenimiento del vehiculo: alertas y preventivos.\nSolo lee maintenance_db, no consulta a Fleet."
+          },
+          "response": []
+        },
+        {
+          "name": "FICHA COMBINADA (REST sincrono a Fleet)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{maint_url}}/api/v1/mantenimiento/vehiculo/{{vehiculo_id}}/ficha",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mantenimiento",
+                "vehiculo",
+                "{{vehiculo_id}}",
+                "ficha"
+              ]
+            },
+            "description": "*** PETICION CLAVE PARA LA SUSTENTACION ***\n\nMaintenance no tiene tabla de vehiculos. Para responder esto hace un\nGET /api/v1/vehiculos/{id} contra Fleet y lo une con su propio historial.\n\nUn solo endpoint devolviendo datos de DOS bases distintas, sin que ninguna\nlea la otra.\n\nEl campo 'fuente' dice de donde salieron los datos del vehiculo:\n  fleet          -> Fleet respondio\n  no_disponible  -> Fleet no respondio o el circuito esta abierto (plan B)\n\n404 si Fleet dice que ese vehiculo no existe."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const f = pm.response.json();",
+                  "pm.test('Los datos vienen de Fleet', () => pm.expect(f.fuente).to.eql('fleet'));",
+                  "console.log('fuente:', f.fuente, '| placa:', f.vehiculo && f.vehiculo.placa);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estado del circuit breaker",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{maint_url}}/api/v1/mantenimiento/dependencias",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mantenimiento",
+                "dependencias"
+              ]
+            },
+            "description": "*** PETICION CLAVE PARA LA SUSTENTACION ***\n\nMuestra si Fleet es alcanzable y en que estado esta el circuito.\n\nPARA DEMOSTRARLO EN VIVO:\n  1. docker compose stop fleet-service\n  2. Lanza la peticion 'FICHA COMBINADA' 5 veces\n  3. Lanza esta: el circuito estara 'abierto' con cuenta regresiva\n  4. La 6a ficha responde al instante (0 s) en vez de tardar 3 s\n  5. docker compose start fleet-service; a los 30 s vuelve a 'cerrado'\n\nEl bloque 'politica' trae los valores de la seccion 05 del documento."
+          },
+          "response": []
+        },
+        {
+          "name": "Proximos mantenimientos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{maint_url}}/api/v1/mantenimiento/proximos?dias=90",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mantenimiento",
+                "proximos"
+              ],
+              "query": [
+                {
+                  "key": "dias",
+                  "value": "90"
+                }
+              ]
+            },
+            "description": "Calendario del taller. 'dias' acepta de 1 a 365; fuera de rango devuelve 422."
+          },
+          "response": []
+        },
+        {
+          "name": "Registrar intervencion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{maint_url}}/api/v1/mantenimiento/intervenciones",
+              "host": [
+                "{{maint_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mantenimiento",
+                "intervenciones"
+              ]
+            },
+            "description": "Cierra el programa, publica maintenance.completed y programa automaticamente\nel siguiente ciclo preventivo (+180 dias, +15.000 km). Todo en una transaccion.\n\nFleet consume ese evento y devuelve el vehiculo a 'disponible'.\n\n404 si el programa no existe. 409 si ya estaba completado.\nUsa {{programa_id}}, que se llena al lanzar 'Alertas abiertas'.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"programa_id\": \"{{programa_id}}\",\n  \"realizado_en\": \"2026-09-15T14:30:00Z\",\n  \"costo\": 1850000,\n  \"taller\": \"Taller Central Montería\",\n  \"km_al_servicio\": 84300,\n  \"notas\": \"Cambio de termostato y purga del sistema de refrigeración\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Reglas, alertas e intervenciones. Ficha 3.6. Incluye las dos\npeticiones que demuestran la comunicacion REST sincrona."
+    }
+  ],
+  "variable": [
+    {
+      "key": "fleet_url",
+      "value": "http://localhost:8001",
+      "type": "string"
+    },
+    {
+      "key": "maint_url",
+      "value": "http://localhost:8002",
+      "type": "string"
+    },
+    {
+      "key": "vehiculo_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conductor_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "regla_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "programa_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
