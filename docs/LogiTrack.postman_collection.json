@@ -111,7 +111,7 @@
             "description": "Alta en el catalogo maestro. Devuelve 201 y la cabecera Location.\n409 si la placa ya existe (restriccion de unicidad en fleet_db).\n\nGuarda el id en la variable {{vehiculo_id}} para las peticiones siguientes.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"placa\": \"ABC123\",\n  \"tipo\": \"camion_rigido\",\n  \"capacidad_kg\": 8000,\n  \"capacidad_m3\": 30,\n  \"anio\": 2021,\n  \"vencimiento_seguro\": \"2027-07-12\",\n  \"refrigerado\": true,\n  \"certificado_hazmat\": false,\n  \"zona_operacion\": \"montería\",\n  \"km_actual\": 84000\n}",
+              "raw": "{\n  \"placa\": \"ABC123\",\n  \"tipo\": \"camion_rigido\",\n  \"capacidad_kg\": 8000,\n  \"capacidad_m3\": 30,\n  \"anio\": 2021,\n  \"vencimiento_seguro\": \"2027-07-12\",\n  \"refrigerado\": true,\n  \"certificado_hazmat\": false,\n  \"zona_operacion\": \"montería\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

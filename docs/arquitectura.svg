@@ -83,7 +83,7 @@
   <text x="500" y="396" text-anchor="middle" font-size="10" fill="#0f766e">circuit breaker 5 fallos/30 s · plan B</text>
 
   <path d="M 638 424 L 366 424" stroke="#0d9488" stroke-width="2.5" fill="none" marker-end="url(#flechaRest)"/>
-  <text x="502" y="440" text-anchor="middle" font-size="10" fill="#0f766e">pregunta tipo, placa y kilometraje</text>
+  <text x="502" y="440" text-anchor="middle" font-size="10" fill="#0f766e">pregunta tipo y placa (el km viene en el evento)</text>
 
   <!-- ================= Flechas de eventos ================= -->
   <!-- Maintenance -> bus -->

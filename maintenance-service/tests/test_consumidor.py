@@ -69,9 +69,10 @@ def _fleet_responde(monkeypatch, respuesta: RespuestaFleet):
     monkeypatch.setattr(consumer.fleet, "obtener_vehiculo", lambda _id: respuesta)
 
 
-def _ok(tipo="camion_rigido", placa="ABC123", km=84000) -> RespuestaFleet:
+def _ok(tipo="camion_rigido", placa="ABC123") -> RespuestaFleet:
+    """La respuesta REAL de Fleet: VehiculoOut no trae km_actual (3.2)."""
     return RespuestaFleet(
-        "ok", vehiculo={"id": VEHICULO_ID, "placa": placa, "tipo": tipo, "km_actual": km}
+        "ok", vehiculo={"id": VEHICULO_ID, "placa": placa, "tipo": tipo}
     )
 
 
@@ -101,10 +102,28 @@ def test_la_alerta_se_enriquece_con_la_placa_que_dio_fleet(db, monkeypatch, regl
     assert evento.payload["placa"] == "XYZ789"
 
 
-def test_el_km_de_fleet_gana_sobre_el_del_evento(db, monkeypatch, regla_general):
-    _fleet_responde(monkeypatch, _ok(km=99999))
-    consumer.manejar(_telemetria(temperatura_motor_max_c=112.4, odometro_km=1))
-    assert db.scalars(select(ProgramaMantenimiento)).one().km_previsto == 99999
+def test_aunque_la_respuesta_de_fleet_traiga_km_actual_el_km_sale_del_evento(
+    db, monkeypatch, regla_general
+):
+    """Defecto 3.2: Fleet NO expone kilometraje (VehiculoOut no trae km_actual).
+
+    El consumidor antes leía un km_actual que la respuesta real nunca contiene
+    — código muerto validado por un doble que lo inventaba. Ahora el km de la
+    alerta sale SIEMPRE del odometro_km del evento, que es quien mide el
+    odómetro, y un campo km_actual pegado en la respuesta se ignora.
+    """
+    respuesta = RespuestaFleet(
+        "ok",
+        vehiculo={
+            "id": VEHICULO_ID,
+            "placa": "ABC123",
+            "tipo": "camion_rigido",
+            "km_actual": 99999,
+        },
+    )
+    _fleet_responde(monkeypatch, respuesta)
+    consumer.manejar(_telemetria(temperatura_motor_max_c=112.4, odometro_km=42000))
+    assert db.scalars(select(ProgramaMantenimiento)).one().km_previsto == 42000
 
 
 def test_regla_por_tipo_dispara_gracias_a_la_consulta_sincrona(db, monkeypatch, regla_tractomula):

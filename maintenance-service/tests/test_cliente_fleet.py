@@ -14,11 +14,12 @@ from app.clients import fleet
 from app.config import settings
 
 VEHICULO = {
+    # VehiculoOut real: id, placa, tipo, estado... Sin km_actual: Fleet no
+    # almacena kilometraje (defecto 3.2), el doble no puede inventarlo.
     "id": str(uuid.uuid4()),
     "placa": "ABC123",
     "tipo": "tractomula",
     "estado": "disponible",
-    "km_actual": 84000,
 }
 
 

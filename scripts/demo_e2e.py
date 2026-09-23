@@ -56,7 +56,6 @@ def main():
             "vencimiento_seguro": str(date.today() + timedelta(days=200)),
             "refrigerado": True,
             "zona_operacion": "montería",
-            "km_actual": 84000,
         },
         timeout=5,
     )
@@ -203,7 +202,6 @@ def main():
             "vencimiento_seguro": str(date.today() + timedelta(days=300)),
             "certificado_hazmat": True,
             "zona_operacion": "montería",
-            "km_actual": 310000,
         },
         timeout=5,
     )

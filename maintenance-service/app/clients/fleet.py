@@ -8,8 +8,10 @@ síncrono; si puede continuar, se publica un evento".
 Por qué existe:
     La ficha 3.6 dice que Maintenance compara la telemetría "contra reglas por
     tipo de vehículo". El evento telemetry.aggregated no garantiza traer el tipo,
-    y Maintenance no tiene tabla de vehículos (Database per Service). El tipo, la
-    placa y el kilometraje son propiedad de Fleet: hay que preguntárselos.
+    y Maintenance no tiene tabla de vehículos (Database per Service). El tipo y
+    la placa son propiedad de Fleet: hay que preguntárselos. El kilometraje NO:
+    Fleet no lo almacena ni lo expone (VehiculoOut no trae km_actual); el km
+    llega en el evento (odometro_km) — defecto 3.2.
 
 Política de resiliencia implementada (valores del documento, sección 05):
     - Timeout           2 s para llamadas REST internas.

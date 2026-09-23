@@ -153,15 +153,18 @@ espera al otro: si el destinatario está caído, el mensaje queda en la cola.
 
 ```
 Maintenance --GET /api/v1/vehiculos/{id}--> Fleet
-            <--- 200 placa, tipo, km_actual ---
+            <--- 200 placa, tipo ---
 ```
 
 **Por qué es necesario, y no decorativo:** la ficha 3.6 dice que Maintenance
 compara la telemetría *"contra reglas por tipo de vehículo"*. El evento
 `telemetry.aggregated` no garantiza traer el tipo, y Maintenance no tiene tabla
-de vehículos (Database per Service). El tipo, la placa y el kilometraje son
-propiedad de Fleet: **hay que preguntárselos, y sin esa respuesta no se puede
-decidir qué reglas aplicar**. Es exactamente el criterio de la sección 05.
+de vehículos (Database per Service). El tipo y la placa son propiedad de
+Fleet: **hay que preguntárselos, y sin esa respuesta no se puede decidir qué
+reglas aplicar**. Es exactamente el criterio de la sección 05. El kilometraje
+**no** se le pide a Fleet: no lo almacena (`VehiculoOut` no trae `km_actual`)
+y el km de las alertas sale del `odometro_km` del evento, que es quien mide el
+odómetro.
 
 Implementado en `maintenance-service/app/clients/fleet.py`, con los valores
 literales del documento:

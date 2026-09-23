@@ -112,7 +112,6 @@ def vehiculo(cliente):
             "vencimiento_seguro": "2030-01-01",
             "refrigerado": True,
             "zona_operacion": "montería",
-            "km_actual": 84000,
         },
     )
     assert respuesta.status_code == 201

@@ -3,10 +3,11 @@
 Aquí se combinan los dos estilos de comunicación:
     ASÍNCRONO  el evento telemetry.aggregated llega por RabbitMQ.
     SÍNCRONO   antes de evaluar, se le pregunta a Fleet por REST qué vehículo es
-               ese UUID (tipo, placa, kilometraje). Sin el tipo no se pueden
-               aplicar las reglas por tipo de vehículo que exige la ficha 3.6, y
-               ese dato es propiedad de Fleet: Maintenance no puede inventarlo ni
-               leer su base de datos.
+               ese UUID (tipo y placa). Sin el tipo no se pueden aplicar las
+               reglas por tipo de vehículo que exige la ficha 3.6, y ese dato es
+               propiedad de Fleet: Maintenance no puede inventarlo ni leer su
+               base de datos. El kilometraje NO se le pide a Fleet — no lo
+               almacena —: llega en el propio evento como odometro_km (3.2).
 """
 
 import logging
@@ -50,7 +51,9 @@ def manejar(evento: dict):
             return
 
         vehiculo_id = datos.get("vehicle_id")
-        # Valores que trae el propio evento: son el plan B si Fleet no responde.
+        # El tipo es el plan B si Fleet no responde; el km sale SIEMPRE del
+        # evento (odometro_km, de Tracking): Fleet no almacena kilometraje y
+        # su respuesta no trae km_actual (defecto 3.2).
         tipo_vehiculo = datos.get("tipo_vehiculo")
         km_actual = datos.get("odometro_km")
         placa = None
@@ -88,8 +91,8 @@ def manejar(evento: dict):
                 v = respuesta.vehiculo
                 tipo_vehiculo = v.get("tipo") or tipo_vehiculo
                 placa = v.get("placa")
-                if v.get("km_actual") is not None:
-                    km_actual = v["km_actual"]
+                # km_actual NO: VehiculoOut no lo trae (3.2), el km es del
+                # evento y leerlo de aquí era código muerto sobre un doble.
                 origen_datos = "fleet"
             else:
                 # PLAN B: Fleet no respondió o el circuito está abierto. No se
