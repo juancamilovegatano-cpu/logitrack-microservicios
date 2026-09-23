@@ -49,7 +49,9 @@ def main():
             },
             timeout=5,
         )
-        print(f"vehiculo {placa}: {r.status_code}")
+        # 409 = la placa es unica y ya estaba: no es un error, es idempotencia.
+        detalle = "ya existía" if r.status_code == 409 else r.status_code
+        print(f"vehiculo {placa}: {detalle}")
 
     for nombre, licencia, hazmat, categorias in CONDUCTORES:
         r = requests.post(
@@ -62,9 +64,22 @@ def main():
             },
             timeout=5,
         )
-        print(f"conductor {nombre}: {r.status_code}")
+        # 409 = la licencia es unica y ya existía: idempotencia, no error.
+        detalle = "ya existía" if r.status_code == 409 else r.status_code
+        print(f"conductor {nombre}: {detalle}")
 
+    # Idempotencia (defecto 2.5): las reglas NO tienen nombre único, así que
+    # el POST siempre creaba una fila nueva y cada corrida añadía cuatro más
+    # (a la tercera, la misma métrica disparaba alertas duplicadas con
+    # regla_id distinto). Se busca cada regla por nombre antes de crearla.
+    existentes = {
+        regla["nombre"]
+        for regla in requests.get(f"{MAINT}/api/v1/mantenimiento/reglas", timeout=5).json()
+    }
     for nombre, tipo_veh, metrica, umbral, comparador, prioridad in REGLAS:
+        if nombre in existentes:
+            print(f"regla {nombre}: ya existía")
+            continue
         r = requests.post(
             f"{MAINT}/api/v1/mantenimiento/reglas",
             json={
