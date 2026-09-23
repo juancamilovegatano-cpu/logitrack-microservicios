@@ -116,3 +116,18 @@ def test_filtro_de_conductores_por_nombre_parcial(cliente):
 
     assert len(cliente.get("/api/v1/conductores?nombre=ayazo").json()) == 1
     assert cliente.get("/api/v1/conductores?nombre=zzz").json() == []
+
+
+def test_categoria_larga_devuelve_422(cliente):
+    """Defecto 4.2: la columna de cada categoria es String(4) pero el schema
+    de Pydantic no impone max_length por elemento: 'ABCDE' llegaba a
+    PostgreSQL y salía un 500 en vez de un 422."""
+    respuesta = cliente.post(
+        "/api/v1/conductores",
+        json={
+            "nombre": "Ana Ruiz",
+            "numero_licencia": "LIC-777",
+            "categorias": ["ABCDE"],
+        },
+    )
+    assert respuesta.status_code == 422

@@ -124,3 +124,21 @@ def test_motivo_demasiado_corto_devuelve_422(cliente, vehiculo):
         json={"estado": "en_ruta", "motivo": "x"},  # el esquema exige 3 caracteres
     )
     assert respuesta.status_code == 422
+
+
+def test_zona_operacion_larga_devuelve_422(cliente):
+    """Defecto 4.2: la columna es String(60) pero el schema no impone
+    max_length: la cadena llegaba a PostgreSQL y salía un 500 en vez de un 422."""
+    respuesta = cliente.post(
+        "/api/v1/vehiculos",
+        json={
+            "placa": "ZON100",
+            "tipo": "van",
+            "capacidad_kg": 1200,
+            "capacidad_m3": 8,
+            "anio": 2023,
+            "vencimiento_seguro": "2030-01-01",
+            "zona_operacion": "x" * 61,
+        },
+    )
+    assert respuesta.status_code == 422

@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,7 +18,9 @@ class VehiculoCrear(BaseModel):
     vencimiento_seguro: date
     refrigerado: bool = False
     certificado_hazmat: bool = False
-    zona_operacion: str = "montería"
+    # max_length = el de la columna String(60): sin él el valor llegaba a
+    # PostgreSQL y salía un 500 en vez de un 422 (defecto 4.2).
+    zona_operacion: str = Field(default="montería", max_length=60)
 
 
 class VehiculoOut(BaseModel):
@@ -56,7 +58,8 @@ class ConductorCrear(BaseModel):
     nombre: str = Field(min_length=3, max_length=120)
     numero_licencia: str = Field(min_length=4, max_length=30)
     certificacion_hazmat: bool = False
-    categorias: list[str] = Field(default_factory=list)
+    # max_length = el de la columna String(4) de cada categoria (defecto 4.2).
+    categorias: list[Annotated[str, Field(max_length=4)]] = Field(default_factory=list)
 
 
 class ConductorOut(BaseModel):
