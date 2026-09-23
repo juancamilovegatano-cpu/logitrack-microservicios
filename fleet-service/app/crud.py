@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.events import contrato
 from app.events.outbox import encolar
 from app.models import Asignacion, Conductor, EventoProcesado, Vehiculo
 
@@ -85,28 +86,56 @@ def vehiculos_disponibles(
     return list(db.scalars(q.order_by(Vehiculo.capacidad_kg)).all())
 
 
+# Máquina de estados del vehículo: de cada estado, a cuáles se puede pasar.
+#
+# La regla que obliga a declararla: un vehículo `fuera_servicio` NO vuelve a
+# operar directamente. Tiene que pasar por taller (`mantenimiento`). Sin esta
+# tabla, un PATCH podía devolver a la calle un camión accidentado.
+TRANSICIONES: dict[str, set[str]] = {
+    "disponible": {"en_ruta", "mantenimiento", "fuera_servicio"},
+    "en_ruta": {"disponible", "mantenimiento", "fuera_servicio"},
+    "mantenimiento": {"disponible", "fuera_servicio"},
+    "fuera_servicio": {"mantenimiento"},
+}
+
+
+class TransicionInvalida(ValueError):
+    """El estado destino no es alcanzable desde el actual."""
+
+    def __init__(self, actual: str, destino: str) -> None:
+        self.actual = actual
+        self.destino = destino
+        permitidos = ", ".join(sorted(TRANSICIONES.get(actual, set()))) or "ninguno"
+        super().__init__(
+            f"no se puede pasar de '{actual}' a '{destino}'; desde '{actual}' "
+            f"solo se permite: {permitidos}"
+        )
+
+
+def transicion_permitida(actual: str, destino: str) -> bool:
+    return destino in TRANSICIONES.get(actual, set())
+
+
 def cambiar_estado(db: Session, vehiculo: Vehiculo, nuevo_estado: str, motivo: str) -> bool:
     """Cambia el estado y encola vehicle.status_changed en la MISMA transacción.
 
     Devuelve False si el estado no cambió (no se publica evento redundante).
+    Lanza TransicionInvalida si el salto no está permitido.
     El commit lo hace el llamador.
     """
     if vehiculo.estado == nuevo_estado:
         return False
+    if not transicion_permitida(vehiculo.estado, nuevo_estado):
+        raise TransicionInvalida(vehiculo.estado, nuevo_estado)
+
     anterior = vehiculo.estado
     vehiculo.estado = nuevo_estado
+    # El payload va en el vocabulario del CONTRATO, no en el de la base.
     encolar(
         db,
         tipo="vehicle.status_changed",
         agregado_id=vehiculo.id,
-        datos={
-            "vehiculo_id": str(vehiculo.id),
-            "placa": vehiculo.placa,
-            "estado_anterior": anterior,
-            "estado_nuevo": nuevo_estado,
-            "motivo": motivo,
-            "zona_operacion": vehiculo.zona_operacion,
-        },
+        datos=contrato.payload_status_changed(vehiculo, anterior, nuevo_estado, motivo),
     )
     return True
 

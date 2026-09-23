@@ -20,21 +20,26 @@ from app.events import bus
 
 log = logging.getLogger("consumer")
 
-EXCHANGES = {settings.exchange_tracking: ["telemetry.aggregated"]}
+EXCHANGES = {settings.exchange_eventos: ["telemetry.aggregated"]}
 
-# métrica del modelo <- campo del evento de telemetría
+# Métrica del modelo de reglas <- campo del payload canónico de
+# telemetry.aggregated (contrato del sistema, publicado por Tracking).
+#
+# Los nombres de la derecha NO son elegibles: son los que Tracking emite. Si
+# uno deja de coincidir, esta métrica se salta EN SILENCIO y la alerta nunca
+# se abre — por eso hay un test que los fija.
 CAMPOS = {
-    "temperatura_motor_c": "temperatura_max_c",
-    "km_acumulados": "km_acumulados",
+    "temperatura_motor_c": "temperatura_motor_max_c",
+    "km_acumulados": "odometro_km",
     "horas_motor": "horas_motor",
-    "nivel_combustible_pct": "nivel_combustible_pct",
+    "nivel_combustible_pct": "combustible_pct",
 }
 
 
 def manejar(evento: dict):
-    tipo = evento.get("tipo")
+    tipo = evento.get("event_type")
     event_id = evento.get("event_id")
-    datos = evento.get("datos") or {}
+    datos = evento.get("payload") or {}
 
     db = SessionLocal()
     try:
@@ -42,16 +47,27 @@ def manejar(evento: dict):
             log.info("evento %s ya procesado, se descarta", event_id)
             return
 
-        vehiculo_id = datos.get("vehiculo_id")
+        vehiculo_id = datos.get("vehicle_id")
         # Valores que trae el propio evento: son el plan B si Fleet no responde.
         tipo_vehiculo = datos.get("tipo_vehiculo")
-        km_actual = datos.get("km_acumulados")
+        km_actual = datos.get("odometro_km")
         placa = None
         origen_datos = "evento"
         abiertas = []
 
         if vehiculo_id:
-            vehiculo_id = uuid.UUID(vehiculo_id)
+            # Guardia: un identificador malformado lanzaba ValueError, el
+            # mensaje se reintentaba cinco veces y acababa en la DLQ sin que
+            # el log explicara nada. Se descarta en la primera pasada, queda
+            # registrado, y el evento se marca como procesado.
+            try:
+                vehiculo_id = uuid.UUID(str(vehiculo_id))
+            except ValueError:
+                detalle = f"vehicle_id no es un UUID valido: {vehiculo_id!r}"
+                log.warning("%s (%s): %s", tipo, event_id, detalle)
+                crud.marcar_procesado(db, event_id, tipo, detalle)
+                db.commit()
+                return
 
             # --- LLAMADA REST SÍNCRONA A FLEET ---
             respuesta = fleet.obtener_vehiculo(vehiculo_id)

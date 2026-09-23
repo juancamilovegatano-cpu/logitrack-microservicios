@@ -79,7 +79,7 @@ def abrir_alerta(
         agregado_id=programa.id,
         datos={
             "programa_id": str(programa.id),
-            "vehiculo_id": str(vehiculo_id),
+            "vehicle_id": str(vehiculo_id),
             "placa": placa,  # enriquecido por la consulta síncrona a Fleet
             "regla": regla.nombre,
             "metrica": regla.metrica,
@@ -100,7 +100,7 @@ def programar(db: Session, programa: ProgramaMantenimiento) -> None:
         agregado_id=programa.id,
         datos={
             "programa_id": str(programa.id),
-            "vehiculo_id": str(programa.vehiculo_id),
+            "vehicle_id": str(programa.vehiculo_id),
             "fecha_prevista": programa.fecha_prevista.isoformat(),
             "km_previsto": programa.km_previsto,
             "prioridad": programa.prioridad,
@@ -136,7 +136,7 @@ def registrar_intervencion(db: Session, datos) -> Intervencion:
         agregado_id=programa.id,
         datos={
             "programa_id": str(programa.id),
-            "vehiculo_id": str(programa.vehiculo_id),
+            "vehicle_id": str(programa.vehiculo_id),
             "realizado_en": datos.realizado_en.isoformat(),
             "costo": float(datos.costo),
             "taller": datos.taller,

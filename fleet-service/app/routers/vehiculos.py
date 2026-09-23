@@ -70,7 +70,15 @@ def cambiar_estado(
     vehiculo = crud.obtener_vehiculo(db, vehiculo_id)
     if vehiculo is None:
         raise HTTPException(404, {"error": "vehiculo_no_encontrado", "mensaje": str(vehiculo_id)})
-    crud.cambiar_estado(db, vehiculo, cambio.estado, cambio.motivo)
+    try:
+        crud.cambiar_estado(db, vehiculo, cambio.estado, cambio.motivo)
+    except crud.TransicionInvalida as exc:
+        # 422 y no 500: el cliente mandó una petición bien formada pero que
+        # el dominio no permite. El mensaje dice qué destinos sí valen.
+        db.rollback()
+        raise HTTPException(
+            422, {"error": "transicion_invalida", "mensaje": str(exc)}
+        ) from None
     db.commit()  # estado + fila de outbox en la misma transacción
     db.refresh(vehiculo)
     return vehiculo

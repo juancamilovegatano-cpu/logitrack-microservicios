@@ -11,7 +11,7 @@
  */
 
 const FLEET = import.meta.env.VITE_FLEET_URL || "http://localhost:8001";
-const MAINT = import.meta.env.VITE_MAINT_URL || "http://localhost:8002";
+const MAINT = import.meta.env.VITE_MAINT_URL || "http://localhost:8006";
 
 export const DIRECCIONES = { fleet: FLEET, mantenimiento: MAINT };
 

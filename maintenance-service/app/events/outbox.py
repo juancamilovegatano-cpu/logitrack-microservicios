@@ -32,7 +32,7 @@ def _publicar_lote(canal) -> int:
         ).all()
         for fila in pendientes:
             evento = bus.sobre(tipo=fila.tipo, agregado_id=fila.agregado_id, datos=fila.payload)
-            bus.publicar(canal, settings.exchange_propio, evento)
+            bus.publicar(canal, settings.exchange_eventos, evento)
             fila.publicado_en = datetime.now(UTC)
         db.commit()
         return len(pendientes)

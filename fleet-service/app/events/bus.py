@@ -1,7 +1,7 @@
 """Cliente RabbitMQ: topología, publicación y consumo con DLQ.
 
-Topología (idéntica en los dos servicios):
-  exchange topic  logitrack.<dominio>   -> donde publica el dueño del dominio
+Topología (idéntica en los cinco microservicios):
+  exchange topic  logitrack.events      -> único; la routing key es el event_type
   exchange topic  logitrack.dlx         -> dead letter exchange comun
   cola  <servicio>.inbox                -> una por servicio, durable, con DLQ
   cola  <servicio>.inbox.dlq            -> mensajes que fallaron 5 veces
@@ -36,8 +36,8 @@ def declarar_topologia(canal, exchanges_a_consumir: dict[str, list[str]] | None 
     canal.queue_declare(cola_dlq, durable=True)
     canal.queue_bind(cola_dlq, settings.dlx_name, routing_key=f"{settings.queue_name}.#")
 
-    # exchange propio (para publicar)
-    canal.exchange_declare(settings.exchange_propio, exchange_type="topic", durable=True)
+    # Exchange único del sistema: se declara siempre, se publique o se consuma.
+    canal.exchange_declare(settings.exchange_eventos, exchange_type="topic", durable=True)
 
     if exchanges_a_consumir:
         canal.queue_declare(
@@ -55,27 +55,42 @@ def declarar_topologia(canal, exchanges_a_consumir: dict[str, list[str]] | None 
 
 
 def sobre(tipo: str, agregado_id, datos: dict, event_id: str | None = None) -> dict:
-    """Formato único de mensaje. event_id es la llave de idempotencia del consumidor."""
+    """Sobre canónico del sistema. Lo comparten los cinco microservicios.
+
+        {event_id, event_type, occurred_at, producer, trace_id, payload}
+
+    `event_id` es la llave de idempotencia del consumidor: se conserva si el
+    llamador lo trae, para que un reintento del outbox no genere uno nuevo.
+
+    `agregado_id` se mantiene en la firma porque el outbox lo pasa, pero NO
+    viaja en el sobre: el identificador del agregado ya va dentro del payload
+    de cada evento, y duplicarlo abría la puerta a que los dos valores se
+    contradijeran.
+
+    `trace_id` se genera aquí cuando no existe. Sin él, seguir una operación
+    que atraviesa cuatro servicios en los logs es imposible.
+    """
     return {
         "event_id": event_id or str(uuid.uuid4()),
-        "tipo": tipo,
-        "ocurrido_en": datetime.now(UTC).isoformat(),
-        "origen": settings.service_name,
-        "agregado_id": str(agregado_id),
-        "datos": datos,
+        "event_type": tipo,
+        "occurred_at": datetime.now(UTC).isoformat(),
+        "producer": settings.service_name,
+        "trace_id": uuid.uuid4().hex,
+        "payload": datos,
     }
 
 
 def publicar(canal, exchange: str, evento: dict):
     canal.basic_publish(
         exchange=exchange,
-        routing_key=evento["tipo"],
+        routing_key=evento["event_type"],
         body=json.dumps(evento, default=str).encode(),
         properties=pika.BasicProperties(
             content_type="application/json",
             delivery_mode=2,  # persistente
             message_id=evento["event_id"],
-            type=evento["tipo"],
+            type=evento["event_type"],
+            headers={"trace_id": evento.get("trace_id") or "-"},
         ),
     )
 

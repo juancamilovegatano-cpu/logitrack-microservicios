@@ -42,7 +42,7 @@ def _publicar_lote(canal) -> int:
                 datos=fila.payload,
                 event_id=str(fila.payload.get("event_id")) if fila.payload.get("event_id") else None,
             )
-            bus.publicar(canal, settings.exchange_propio, evento)
+            bus.publicar(canal, settings.exchange_eventos, evento)
             fila.publicado_en = datetime.now(UTC)
         db.commit()
         return len(pendientes)

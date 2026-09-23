@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg2://logitrack:logitrack@localhost:5433/maintenance_db"
     rabbitmq_url: str = "amqp://logitrack:logitrack@localhost:5672/"
 
-    exchange_propio: str = "logitrack.maintenance"
-    exchange_tracking: str = "logitrack.tracking"
+    # Exchange ÚNICO del sistema (ver nota en fleet-service/app/config.py).
+    exchange_eventos: str = "logitrack.events"
 
     queue_name: str = "maintenance.inbox"
     dlx_name: str = "logitrack.dlx"

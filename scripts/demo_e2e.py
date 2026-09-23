@@ -23,7 +23,7 @@ import requests
 FLEET = "http://localhost:8001"
 MAINT = "http://localhost:8002"
 AMQP = "amqp://logitrack:logitrack@localhost:5672/"
-EXCHANGE_TRACKING = "logitrack.tracking"
+EXCHANGE_EVENTOS = "logitrack.events"
 
 
 def paso(n, texto):
@@ -82,24 +82,24 @@ def main():
     paso(3, "Tracking (simulado): publicando telemetry.aggregated con 112 °C")
     conexion = pika.BlockingConnection(pika.URLParameters(AMQP))
     canal = conexion.channel()
-    canal.exchange_declare(EXCHANGE_TRACKING, exchange_type="topic", durable=True)
+    canal.exchange_declare(EXCHANGE_EVENTOS, exchange_type="topic", durable=True)
     evento = {
         "event_id": str(uuid.uuid4()),
-        "tipo": "telemetry.aggregated",
-        "ocurrido_en": datetime.now(timezone.utc).isoformat(),
-        "origen": "tracking-ingestion-service",
-        "agregado_id": vehiculo["id"],
-        "datos": {
-            "vehiculo_id": vehiculo["id"],
-            "ventana_min": 5,
-            "temperatura_max_c": 112.4,
-            "velocidad_prom_kmh": 61.0,
-            "nivel_combustible_pct": 42.0,
-            "km_acumulados": 84250,
+        "event_type": "telemetry.aggregated",
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "producer": "tracking-service",
+        "trace_id": uuid.uuid4().hex,
+        "payload": {
+            "vehicle_id": vehiculo["id"],
+            "lecturas": 30,
+            "temperatura_motor_max_c": 112.4,
+            "velocidad_promedio_kmh": 61.0,
+            "combustible_pct": 42.0,
+            "odometro_km": 84250,
         },
     }
     canal.basic_publish(
-        exchange=EXCHANGE_TRACKING,
+        exchange=EXCHANGE_EVENTOS,
         routing_key="telemetry.aggregated",
         body=json.dumps(evento).encode(),
         properties=pika.BasicProperties(delivery_mode=2, content_type="application/json"),
@@ -224,20 +224,24 @@ def main():
 
     conexion = pika.BlockingConnection(pika.URLParameters(AMQP))
     canal = conexion.channel()
-    canal.exchange_declare(EXCHANGE_TRACKING, exchange_type="topic", durable=True)
+    canal.exchange_declare(EXCHANGE_EVENTOS, exchange_type="topic", durable=True)
     evento_t = {
         "event_id": str(uuid.uuid4()),
-        "tipo": "telemetry.aggregated",
-        "ocurrido_en": datetime.now(timezone.utc).isoformat(),
-        "origen": "tracking-ingestion-service",
-        "agregado_id": tractomula["id"],
+        "event_type": "telemetry.aggregated",
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "producer": "tracking-service",
+        "trace_id": uuid.uuid4().hex,
         # OJO: el evento NO trae "tipo_vehiculo". Sin la llamada síncrona a
         # Fleet, Maintenance jamás sabría que esto es una tractomula y la regla
         # por tipo nunca dispararía.
-        "datos": {"vehiculo_id": tractomula["id"], "horas_motor": 640, "km_acumulados": 310500},
+        "payload": {
+            "vehicle_id": tractomula["id"],
+            "horas_motor": 640,
+            "odometro_km": 310500,
+        },
     }
     canal.basic_publish(
-        exchange=EXCHANGE_TRACKING,
+        exchange=EXCHANGE_EVENTOS,
         routing_key="telemetry.aggregated",
         body=json.dumps(evento_t).encode(),
         properties=pika.BasicProperties(delivery_mode=2, content_type="application/json"),

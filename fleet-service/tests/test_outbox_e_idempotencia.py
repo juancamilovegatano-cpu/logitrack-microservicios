@@ -15,13 +15,21 @@ from app.events import consumer
 from app.models import EventoProcesado, OutboxEvento, Vehiculo
 
 
-def _evento(tipo: str, vehiculo_id: str, event_id: str | None = None) -> dict:
+def _evento(tipo: str, vehiculo_id: str, event_id: str | None = None, **extra) -> dict:
+    """Sobre canónico del sistema: event_type / payload."""
+    payload = {
+        "vehicle_id": vehiculo_id,
+        "metrica": "temperatura_motor_c",
+        "taller": "Central",
+    }
+    payload.update(extra)
     return {
         "event_id": event_id or str(uuid.uuid4()),
-        "tipo": tipo,
-        "origen": "maintenance-service",
-        "agregado_id": vehiculo_id,
-        "datos": {"vehiculo_id": vehiculo_id, "metrica": "temperatura_motor_c", "taller": "Central"},
+        "event_type": tipo,
+        "occurred_at": "2026-01-01T00:00:00+00:00",
+        "producer": "maintenance-service",
+        "trace_id": uuid.uuid4().hex,
+        "payload": payload,
     }
 
 

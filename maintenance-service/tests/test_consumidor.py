@@ -52,14 +52,16 @@ def regla_tractomula(db):
 
 
 def _telemetria(event_id=None, **datos) -> dict:
-    cuerpo = {"vehiculo_id": VEHICULO_ID}
+    """Sobre canónico y nombres de campo del contrato de Tracking."""
+    cuerpo = {"vehicle_id": VEHICULO_ID}
     cuerpo.update(datos)
     return {
         "event_id": event_id or str(uuid.uuid4()),
-        "tipo": "telemetry.aggregated",
-        "origen": "tracking-ingestion-service",
-        "agregado_id": VEHICULO_ID,
-        "datos": cuerpo,
+        "event_type": "telemetry.aggregated",
+        "occurred_at": "2026-01-01T00:00:00+00:00",
+        "producer": "tracking-service",
+        "trace_id": uuid.uuid4().hex,
+        "payload": cuerpo,
     }
 
 
@@ -78,7 +80,7 @@ def _ok(tipo="camion_rigido", placa="ABC123", km=84000) -> RespuestaFleet:
 
 def test_umbral_superado_abre_la_alerta(db, monkeypatch, regla_general):
     _fleet_responde(monkeypatch, _ok())
-    consumer.manejar(_telemetria(temperatura_max_c=112.4))
+    consumer.manejar(_telemetria(temperatura_motor_max_c=112.4))
 
     programas = db.scalars(select(ProgramaMantenimiento)).all()
     assert len(programas) == 1
@@ -89,7 +91,7 @@ def test_umbral_superado_abre_la_alerta(db, monkeypatch, regla_general):
 def test_la_alerta_se_enriquece_con_la_placa_que_dio_fleet(db, monkeypatch, regla_general):
     """El evento de telemetría no trae la placa: sale de la consulta síncrona."""
     _fleet_responde(monkeypatch, _ok(placa="XYZ789"))
-    consumer.manejar(_telemetria(temperatura_max_c=112.4))
+    consumer.manejar(_telemetria(temperatura_motor_max_c=112.4))
 
     programa = db.scalars(select(ProgramaMantenimiento)).one()
     assert "XYZ789" in programa.motivo
@@ -101,7 +103,7 @@ def test_la_alerta_se_enriquece_con_la_placa_que_dio_fleet(db, monkeypatch, regl
 
 def test_el_km_de_fleet_gana_sobre_el_del_evento(db, monkeypatch, regla_general):
     _fleet_responde(monkeypatch, _ok(km=99999))
-    consumer.manejar(_telemetria(temperatura_max_c=112.4, km_acumulados=1))
+    consumer.manejar(_telemetria(temperatura_motor_max_c=112.4, odometro_km=1))
     assert db.scalars(select(ProgramaMantenimiento)).one().km_previsto == 99999
 
 
@@ -121,7 +123,7 @@ def test_regla_de_otro_tipo_no_dispara(db, monkeypatch, regla_tractomula):
 
 def test_umbral_no_superado_no_abre_nada(db, monkeypatch, regla_general):
     _fleet_responde(monkeypatch, _ok())
-    consumer.manejar(_telemetria(temperatura_max_c=90.0))
+    consumer.manejar(_telemetria(temperatura_motor_max_c=90.0))
     assert db.scalars(select(ProgramaMantenimiento)).all() == []
     assert "sin umbrales superados" in db.scalars(select(EventoProcesado)).one().detalle
 
@@ -132,7 +134,7 @@ def test_umbral_no_superado_no_abre_nada(db, monkeypatch, regla_general):
 def test_vehiculo_desconocido_no_abre_alerta(db, monkeypatch, regla_general):
     """Abrir una alerta para un UUID fantasma solo ensucia el calendario."""
     _fleet_responde(monkeypatch, RespuestaFleet("no_encontrado", detalle="no existe"))
-    consumer.manejar(_telemetria(temperatura_max_c=112.4))
+    consumer.manejar(_telemetria(temperatura_motor_max_c=112.4))
 
     assert db.scalars(select(ProgramaMantenimiento)).all() == []
     assert "no reconoce" in db.scalars(select(EventoProcesado)).one().detalle
@@ -145,7 +147,7 @@ def test_plan_b_abre_la_alerta_igual(db, monkeypatch, regla_general):
     """Con Fleet caído la alerta se abre de todos modos: una alerta sin placa
     es mejor que un motor fundido."""
     _fleet_responde(monkeypatch, RespuestaFleet("no_disponible", detalle="circuito abierto"))
-    consumer.manejar(_telemetria(temperatura_max_c=112.4))
+    consumer.manejar(_telemetria(temperatura_motor_max_c=112.4))
 
     programa = db.scalars(select(ProgramaMantenimiento)).one()
     assert programa.estado == "pendiente"
@@ -154,7 +156,7 @@ def test_plan_b_abre_la_alerta_igual(db, monkeypatch, regla_general):
 
 def test_el_plan_b_queda_registrado(db, monkeypatch, regla_general):
     _fleet_responde(monkeypatch, RespuestaFleet("no_disponible", detalle="timeout"))
-    consumer.manejar(_telemetria(temperatura_max_c=112.4))
+    consumer.manejar(_telemetria(temperatura_motor_max_c=112.4))
     assert "degradado" in db.scalars(select(EventoProcesado)).one().detalle
 
 
@@ -170,7 +172,7 @@ def test_sin_fleet_las_reglas_por_tipo_no_pueden_aplicarse(db, monkeypatch, regl
 
 def test_evento_repetido_no_abre_dos_alertas(db, monkeypatch, regla_general):
     _fleet_responde(monkeypatch, _ok())
-    evento = _telemetria(temperatura_max_c=112.4)
+    evento = _telemetria(temperatura_motor_max_c=112.4)
     consumer.manejar(evento)
     consumer.manejar(evento)  # reentrega de RabbitMQ
 
@@ -182,8 +184,8 @@ def test_dos_lecturas_distintas_no_duplican_la_alerta_abierta(db, monkeypatch, r
     """event_id distinto, misma regla y mismo vehículo: la alerta ya está
     abierta, no se abre otra."""
     _fleet_responde(monkeypatch, _ok())
-    consumer.manejar(_telemetria(temperatura_max_c=112.4))
-    consumer.manejar(_telemetria(temperatura_max_c=118.0))
+    consumer.manejar(_telemetria(temperatura_motor_max_c=112.4))
+    consumer.manejar(_telemetria(temperatura_motor_max_c=118.0))
 
     assert len(db.scalars(select(ProgramaMantenimiento)).all()) == 1
     assert len(db.scalars(select(EventoProcesado)).all()) == 2  # los dos sí se procesaron
