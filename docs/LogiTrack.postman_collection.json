@@ -309,7 +309,7 @@
       "description": "Catalogo maestro de vehiculos y conductores. Ficha 3.2."
     },
     {
-      "name": "02 · Maintenance Service (8002)",
+      "name": "02 · Maintenance Service (8006)",
       "item": [
         {
           "name": "Crear regla",
@@ -609,7 +609,7 @@
     },
     {
       "key": "maint_url",
-      "value": "http://localhost:8002",
+      "value": "http://localhost:8006",
       "type": "string"
     },
     {

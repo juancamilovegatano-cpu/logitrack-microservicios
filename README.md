@@ -41,7 +41,7 @@ python scripts/demo_e2e.py   # prueba end-to-end de los 9 pasos
 ```
 
 - Fleet: http://localhost:8001/docs
-- Maintenance: http://localhost:8002/docs
+- Maintenance: http://localhost:8006/docs
 - RabbitMQ: http://localhost:15672 (logitrack / logitrack)
 
 ## Frontend
@@ -166,8 +166,8 @@ Se usa en dos lugares:
 ```bash
 docker compose stop fleet-service
 # 5 veces, y se ve el circuito pasar de cerrado a abierto:
-curl "http://localhost:8002/api/v1/mantenimiento/vehiculo/<UUID>/ficha"
-curl http://localhost:8002/api/v1/mantenimiento/dependencias
+curl "http://localhost:8006/api/v1/mantenimiento/vehiculo/<UUID>/ficha"
+curl http://localhost:8006/api/v1/mantenimiento/dependencias
 docker compose start fleet-service   # a los 30 s vuelve a cerrarse
 ```
 
@@ -202,7 +202,7 @@ GET    /api/v1/conductores/{id}/disponibilidad
 GET    /health · /ready
 ```
 
-### Maintenance Service (8002)
+### Maintenance Service (8006)
 ```
 POST   /api/v1/mantenimiento/reglas
 GET    /api/v1/mantenimiento/reglas
