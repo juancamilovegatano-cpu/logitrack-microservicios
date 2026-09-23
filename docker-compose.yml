@@ -10,6 +10,9 @@
 # canónico en el exchange `logitrack.events`, así que no queda nada que
 # traducir.
 #
+# Valores por defecto: funciona sin configurar nada. Para cambiar contraseñas
+# o claves de API, copia .env.example a .env y edítalo (ver defecto 1.5).
+#
 # -----------------------------------------------------------------------------
 # REQUISITO: los dos repositorios, clonados uno al lado del otro.
 #
@@ -52,10 +55,13 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: logitrack
-      POSTGRES_PASSWORD: logitrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-logitrack}
       POSTGRES_DB: fleet_db
     ports:
-      - "5432:5432" # los tests de fleet-service esperan este puerto
+      # SÍ se publica: los tests de fleet-service se conectan desde el host
+      # a localhost:5432 (test_db). Las demás bases no se exponen: solo las
+      # usa cada servicio por el DNS interno de Docker.
+      - "5432:5432"
     volumes: [fleet_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U logitrack -d fleet_db"]
@@ -67,9 +73,12 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: logitrack
-      POSTGRES_PASSWORD: logitrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-logitrack}
       POSTGRES_DB: maintenance_db
-    ports: ["5433:5432"]
+    ports:
+      # SÍ se publica: los tests de maintenance-service se conectan desde el
+      # host a localhost:5433 (su defecto por servicio; 5432 es de fleet-db).
+      - "5433:5432"
     volumes: [maintenance_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U logitrack -d maintenance_db"]
@@ -81,9 +90,9 @@ services:
     image: timescale/timescaledb:2.17.2-pg16
     environment:
       POSTGRES_USER: logitrack
-      POSTGRES_PASSWORD: logitrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-logitrack}
       POSTGRES_DB: tracking_db
-    ports: ["5434:5432"]
+    # Sin ports: ningún proceso del host necesita esta base.
     volumes: [tracking_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U logitrack -d tracking_db"]
@@ -95,9 +104,9 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: logitrack
-      POSTGRES_PASSWORD: logitrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-logitrack}
       POSTGRES_DB: routing_db
-    ports: ["5435:5432"]
+    # Sin ports: ningún proceso del host necesita esta base.
     volumes: [routing_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U logitrack -d routing_db"]
@@ -109,9 +118,9 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: logitrack
-      POSTGRES_PASSWORD: logitrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-logitrack}
       POSTGRES_DB: shipment_db
-    ports: ["5436:5432"]
+    # Sin ports: ningún proceso del host necesita esta base.
     volumes: [shipment_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U logitrack -d shipment_db"]
@@ -121,7 +130,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    # Sin ports: solo routing-service lo usa, por el DNS interno de Docker.
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -134,7 +143,7 @@ services:
   fleet-service:
     build: ./fleet-service
     environment:
-      DATABASE_URL: postgresql+psycopg2://logitrack:logitrack@fleet-db:5432/fleet_db
+      DATABASE_URL: postgresql+psycopg2://logitrack:${POSTGRES_PASSWORD:-logitrack}@fleet-db:5432/fleet_db
       RABBITMQ_URL: amqp://logitrack:logitrack@rabbitmq:5672/
       EXCHANGE_EVENTOS: logitrack.events
     ports:
@@ -147,7 +156,7 @@ services:
   maintenance-service:
     build: ./maintenance-service
     environment:
-      DATABASE_URL: postgresql+psycopg2://logitrack:logitrack@maintenance-db:5432/maintenance_db
+      DATABASE_URL: postgresql+psycopg2://logitrack:${POSTGRES_PASSWORD:-logitrack}@maintenance-db:5432/maintenance_db
       RABBITMQ_URL: amqp://logitrack:logitrack@rabbitmq:5672/
       EXCHANGE_EVENTOS: logitrack.events
       # REST síncrono hacia Fleet, por DNS de Docker y no por localhost.
@@ -168,11 +177,16 @@ services:
   tracking-service:
     build: ${RUTA_KEVIN:-../kevin-logitrack}/tracking-service
     environment:
-      DATABASE_URL: postgresql+asyncpg://logitrack:logitrack@tracking-db:5432/tracking_db
+      DATABASE_URL: postgresql+asyncpg://logitrack:${POSTGRES_PASSWORD:-logitrack}@tracking-db:5432/tracking_db
       POSTGRES_HOST: tracking-db
       RABBITMQ_URL: amqp://logitrack:logitrack@rabbitmq:5672/
       EXCHANGE_EVENTOS: logitrack.events
       BUS_HABILITADO: "true"
+      ENTORNO: docker
+      # API keys de la ingesta de telemetría (lista JSON). Con claves y
+      # ENTORNO != local el servicio exige X-API-Key; si quedara vacía fuera
+      # de desarrollo, NO arranca en vez de salir abierta (ver .env.example).
+      API_KEYS: ${API_KEYS:-["demo-logitrack"]}
     ports: ["8002:8002"]
     depends_on:
       tracking-db: {condition: service_healthy}
@@ -182,7 +196,7 @@ services:
   routing-service:
     build: ${RUTA_KEVIN:-../kevin-logitrack}/routing-service
     environment:
-      DATABASE_URL: postgresql+asyncpg://logitrack:logitrack@routing-db:5432/routing_db
+      DATABASE_URL: postgresql+asyncpg://logitrack:${POSTGRES_PASSWORD:-logitrack}@routing-db:5432/routing_db
       POSTGRES_HOST: routing-db
       RABBITMQ_URL: amqp://logitrack:logitrack@rabbitmq:5672/
       EXCHANGE_EVENTOS: logitrack.events
@@ -203,7 +217,7 @@ services:
   shipment-service:
     build: ${RUTA_KEVIN:-../kevin-logitrack}/shipment-service
     environment:
-      DATABASE_URL: postgresql+asyncpg://logitrack:logitrack@shipment-db:5432/shipment_db
+      DATABASE_URL: postgresql+asyncpg://logitrack:${POSTGRES_PASSWORD:-logitrack}@shipment-db:5432/shipment_db
       POSTGRES_HOST: shipment-db
       RABBITMQ_URL: amqp://logitrack:logitrack@rabbitmq:5672/
       EXCHANGE_EVENTOS: logitrack.events
