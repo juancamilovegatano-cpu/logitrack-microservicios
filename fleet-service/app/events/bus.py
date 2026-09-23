@@ -54,7 +54,13 @@ def declarar_topologia(canal, exchanges_a_consumir: dict[str, list[str]] | None 
                 canal.queue_bind(settings.queue_name, exchange, routing_key=rk)
 
 
-def sobre(tipo: str, agregado_id, datos: dict, event_id: str | None = None) -> dict:
+def sobre(
+    tipo: str,
+    agregado_id,
+    datos: dict,
+    event_id: str | None = None,
+    trace_id: str | None = None,
+) -> dict:
     """Sobre canónico del sistema. Lo comparten los cinco microservicios.
 
         {event_id, event_type, occurred_at, producer, trace_id, payload}
@@ -67,15 +73,19 @@ def sobre(tipo: str, agregado_id, datos: dict, event_id: str | None = None) -> d
     de cada evento, y duplicarlo abría la puerta a que los dos valores se
     contradijeran.
 
-    `trace_id` se genera aquí cuando no existe. Sin él, seguir una operación
-    que atraviesa cuatro servicios en los logs es imposible.
+    `trace_id` se conserva si el llamador lo trae (defecto 3.1): el outbox lo
+    guarda al encolar, de modo que un evento derivado de otro reutiliza la
+    traza del entrante y la cadena de servicios se sigue de un extremo a otro.
+    Solo se genera uno nuevo cuando la operación es el comienzo de la traza.
+    Sin traza, seguir una operación que atraviesa cuatro servicios en los logs
+    es imposible.
     """
     return {
         "event_id": event_id or str(uuid.uuid4()),
         "event_type": tipo,
         "occurred_at": datetime.now(UTC).isoformat(),
         "producer": settings.service_name,
-        "trace_id": uuid.uuid4().hex,
+        "trace_id": trace_id or uuid.uuid4().hex,
         "payload": datos,
     }
 

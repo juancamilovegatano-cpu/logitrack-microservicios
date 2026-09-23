@@ -45,8 +45,11 @@ def _vehiculo_id(payload: dict) -> uuid.UUID | None:
         return None
 
 
-def _aplicar(db, vehiculo, destino: str, motivo: str) -> str:
+def _aplicar(db, vehiculo, destino: str, motivo: str, trace_id: str | None = None) -> str:
     """Intenta el cambio de estado y devuelve el detalle para la auditoría.
+
+    `trace_id` es la traza del sobre entrante: el evento derivado la reutiliza
+    para que la cadena se siga en los logs (defecto 3.1).
 
     Una transición prohibida NO es un fallo del mensaje: es el dominio
     diciendo que no. Por ejemplo, un `maintenance.completed` sobre un vehículo
@@ -57,7 +60,7 @@ def _aplicar(db, vehiculo, destino: str, motivo: str) -> str:
     en la DLQ como si algo estuviera roto. Se registra y se sigue.
     """
     try:
-        cambio = crud.cambiar_estado(db, vehiculo, destino, motivo)
+        cambio = crud.cambiar_estado(db, vehiculo, destino, motivo, trace_id=trace_id)
     except crud.TransicionInvalida as exc:
         log.warning("transicion rechazada para %s: %s", vehiculo.placa, exc)
         return f"{vehiculo.placa}: {exc}"
@@ -78,6 +81,8 @@ def manejar(evento: dict):
     tipo = evento.get("event_type")
     event_id = evento.get("event_id")
     datos = evento.get("payload") or {}
+    # Traza del sobre entrante (3.1): los eventos derivados la reutilizan.
+    trace_id = evento.get("trace_id")
 
     db = SessionLocal()
     try:
@@ -94,10 +99,10 @@ def manejar(evento: dict):
                 detalle = f"vehículo {vehiculo_id} desconocido"
             elif tipo == "maintenance.alert":
                 motivo = f"alerta de mantenimiento: {datos.get('metrica', 'n/d')}"
-                detalle = _aplicar(db, vehiculo, "mantenimiento", motivo)
+                detalle = _aplicar(db, vehiculo, "mantenimiento", motivo, trace_id=trace_id)
             elif tipo == "maintenance.completed":
                 motivo = f"intervención cerrada en {datos.get('taller', 'taller')}"
-                detalle = _aplicar(db, vehiculo, "disponible", motivo)
+                detalle = _aplicar(db, vehiculo, "disponible", motivo, trace_id=trace_id)
             elif tipo == "shipment.incident":
                 if not _inmoviliza(datos):
                     detalle = (
@@ -106,7 +111,7 @@ def manejar(evento: dict):
                     )
                 else:
                     motivo = f"incidencia en envío {datos.get('shipment_id', 'n/d')}"
-                    detalle = _aplicar(db, vehiculo, "fuera_servicio", motivo)
+                    detalle = _aplicar(db, vehiculo, "fuera_servicio", motivo, trace_id=trace_id)
 
         # el registro de idempotencia y el cambio de estado van juntos
         crud.marcar_procesado(db, event_id, tipo, detalle)

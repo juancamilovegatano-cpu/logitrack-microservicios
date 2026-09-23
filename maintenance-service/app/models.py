@@ -123,6 +123,11 @@ class OutboxEvento(Base):
     agregado_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     tipo: Mapped[str] = mapped_column(String(60), nullable=False)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    # Traza heredada del evento que originó este (3.1): el consumidor la copia
+    # del sobre entrante al encolar el derivado, y el publicador la reutiliza.
+    # NULL = la operación ES el comienzo de la traza (p. ej. un HTTP) y el
+    # sobre se genera con una nueva.
+    trace_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     publicado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

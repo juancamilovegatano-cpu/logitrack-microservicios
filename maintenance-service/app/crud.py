@@ -49,11 +49,14 @@ def abrir_alerta(
     valor: float,
     km_actual: int | None = None,
     placa: str | None = None,
+    trace_id: str | None = None,
 ) -> ProgramaMantenimiento:
     """Crea el programa y encola maintenance.alert en la misma transacción.
 
     `placa` llega de la consulta REST síncrona a Fleet. Es None cuando Fleet no
     respondió (plan B del circuit breaker): la alerta se abre igual.
+
+    `trace_id` lo pasa el consumidor (3.1) con la traza del telemetry entrante.
     """
     programa = ProgramaMantenimiento(
         regla_id=regla.id,
@@ -77,6 +80,7 @@ def abrir_alerta(
         db,
         tipo="maintenance.alert",
         agregado_id=programa.id,
+        trace_id=trace_id,
         datos={
             "programa_id": str(programa.id),
             "vehicle_id": str(vehiculo_id),

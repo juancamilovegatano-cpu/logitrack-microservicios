@@ -40,6 +40,8 @@ def manejar(evento: dict):
     tipo = evento.get("event_type")
     event_id = evento.get("event_id")
     datos = evento.get("payload") or {}
+    # Traza del sobre entrante (3.1): el maintenance.alert derivado la reutiliza.
+    trace_id = evento.get("trace_id")
 
     db = SessionLocal()
     try:
@@ -111,7 +113,8 @@ def manejar(evento: dict):
                         log.info("regla %s ya tiene alerta abierta para %s", regla.nombre, vehiculo_id)
                         continue
                     programa = crud.abrir_alerta(
-                        db, vehiculo_id, regla, float(valor), km_actual, placa
+                        db, vehiculo_id, regla, float(valor), km_actual, placa,
+                        trace_id=trace_id,
                     )
                     abiertas.append(f"{regla.nombre}->{programa.id}")
 

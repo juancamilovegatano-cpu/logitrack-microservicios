@@ -116,12 +116,21 @@ def transicion_permitida(actual: str, destino: str) -> bool:
     return destino in TRANSICIONES.get(actual, set())
 
 
-def cambiar_estado(db: Session, vehiculo: Vehiculo, nuevo_estado: str, motivo: str) -> bool:
+def cambiar_estado(
+    db: Session,
+    vehiculo: Vehiculo,
+    nuevo_estado: str,
+    motivo: str,
+    trace_id: str | None = None,
+) -> bool:
     """Cambia el estado y encola vehicle.status_changed en la MISMA transacción.
 
     Devuelve False si el estado no cambió (no se publica evento redundante).
     Lanza TransicionInvalida si el salto no está permitido.
     El commit lo hace el llamador.
+
+    `trace_id` lo pasa el consumidor (3.1) con la traza del evento entrante;
+    el PATCH HTTP que cambia estado directamente empieza una traza nueva (None).
     """
     if vehiculo.estado == nuevo_estado:
         return False
@@ -136,6 +145,7 @@ def cambiar_estado(db: Session, vehiculo: Vehiculo, nuevo_estado: str, motivo: s
         tipo="vehicle.status_changed",
         agregado_id=vehiculo.id,
         datos=contrato.payload_status_changed(vehiculo, anterior, nuevo_estado, motivo),
+        trace_id=trace_id,
     )
     return True
 

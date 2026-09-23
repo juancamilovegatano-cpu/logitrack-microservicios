@@ -17,11 +17,19 @@ def aplicar_ajustes_pendientes(engine) -> None:
     APAÑO mientras el grupo decide cuándo adopta Alembic (el README lo deja
     para el "momento 2"): create_all solo crea tablas que faltan, nunca añade
     columnas a tablas existentes, así que una base que ya corre necesitaría
-    esto para recibir la columna event_id. Transacción única: o entran todos
-    los pasos o ninguno. Todas las sentencias son idempotentes (IF NOT EXISTS),
-    por lo que en una base nueva son un no-op tras el create_all.
+    esto para recibir las columnas event_id y trace_id. Transacción única: o
+    entran todos los pasos o ninguno. Todas las sentencias son idempotentes
+    (IF NOT EXISTS), por lo que en una base nueva son un no-op tras el
+    create_all.
     """
     with engine.begin() as conexion:
+        # traza heredada (3.1): nullable, NULL = comienzo de traza nueva
+        conexion.execute(
+            text(
+                "ALTER TABLE outbox_eventos "
+                "ADD COLUMN IF NOT EXISTS trace_id VARCHAR(64)"
+            )
+        )
         # 1) añadir la columna (nullable de momento, para poder rellenarla)
         conexion.execute(
             text(

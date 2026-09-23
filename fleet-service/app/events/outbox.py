@@ -19,8 +19,15 @@ from app.models import OutboxEvento
 log = logging.getLogger("outbox")
 
 
-def encolar(db, tipo: str, agregado_id, datos: dict) -> OutboxEvento:
-    """Se llama DENTRO de la transacción de negocio. No hace commit."""
+def encolar(
+    db, tipo: str, agregado_id, datos: dict, trace_id: str | None = None
+) -> OutboxEvento:
+    """Se llama DENTRO de la transacción de negocio. No hace commit.
+
+    `trace_id` es la traza del evento que originó este (3.1): el consumidor la
+    copia del sobre entrante para que la cadena se siga en los logs. Si es
+    None (operación que empieza aquí), el sobre publicado genera la nueva.
+    """
     fila = OutboxEvento(
         # El event_id nace aquí, dentro de la transacción: es la identidad
         # estable del evento, no algo que el publicador improvisara al volar.
@@ -28,6 +35,7 @@ def encolar(db, tipo: str, agregado_id, datos: dict) -> OutboxEvento:
         agregado_id=agregado_id,
         tipo=tipo,
         payload=datos,
+        trace_id=trace_id,
     )
     db.add(fila)
     return fila
@@ -49,6 +57,7 @@ def _publicar_lote(canal) -> int:
                 agregado_id=fila.agregado_id,
                 datos=fila.payload,
                 event_id=str(fila.event_id),
+                trace_id=fila.trace_id,
             )
             bus.publicar(canal, settings.exchange_eventos, evento)
             fila.publicado_en = datetime.now(UTC)
