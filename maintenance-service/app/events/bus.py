@@ -105,6 +105,10 @@ def consumir(exchanges: dict[str, list[str]], manejar, prefetch: int = 20):
         try:
             conexion = conectar()
             canal = conexion.channel()
+            # Modo confirm: en este canal basic_publish solo da por bueno lo
+            # que el broker confirmo. Sin esto, un publish con el broker
+            # caido "parece" exitoso y el ack posterior seria a ciegas.
+            canal.confirm_delivery()
             declarar_topologia(canal, exchanges)
             canal.basic_qos(prefetch_count=prefetch)
             log.info("consumidor escuchando en %s", settings.queue_name)
@@ -122,14 +126,32 @@ def consumir(exchanges: dict[str, list[str]], manejar, prefetch: int = 20):
                     if intentos >= MAX_REINTENTOS:
                         canal.basic_nack(metodo.delivery_tag, requeue=False)  # -> DLQ
                     else:
-                        canal.basic_ack(metodo.delivery_tag)
                         props.headers = {**(props.headers or {}), "x-intentos": intentos}
-                        canal.basic_publish(
-                            exchange="",
-                            routing_key=settings.queue_name,
-                            body=body,
-                            properties=props,
-                        )
+                        # Primero la republicacion CONFIRMADA y despues el ack.
+                        # Con el orden anterior, entre el ack y el publish el
+                        # mensaje no existia en ninguna parte: si el publish
+                        # fallaba (broker caido, justo cuando hay reintentos)
+                        # RabbitMQ ya lo daba por entregado y se perdia.
+                        try:
+                            confirmado = canal.basic_publish(
+                                exchange="",
+                                routing_key=settings.queue_name,
+                                body=body,
+                                properties=props,
+                            )
+                        except Exception:
+                            log.exception(
+                                "republicacion no confirmada; se reencola el mensaje original"
+                            )
+                            canal.basic_nack(metodo.delivery_tag, requeue=True)
+                            continue
+                        if confirmado is False:  # el broker la rechazo (nack)
+                            log.error(
+                                "broker rechazo la republicacion; se reencola el mensaje original"
+                            )
+                            canal.basic_nack(metodo.delivery_tag, requeue=True)
+                            continue
+                        canal.basic_ack(metodo.delivery_tag)
         except Exception:
             log.exception("conexión al bus perdida; reintentando en 5s")
             time.sleep(5)
