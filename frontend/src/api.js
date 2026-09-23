@@ -155,6 +155,10 @@ export const mantenimiento = {
 // ------------------------------------------------------ Valores del dominio
 // Copiados de los Literal de Pydantic: si el backend los cambia, esto rompe
 // primero aquí y no con un 422 delante del usuario.
+//
+// codigo_obd2 desapareció de la lista (defecto 3.3): el payload lo trae como
+// LISTA de códigos ("P0420") y las reglas comparan umbrales numéricos
+// (float(valor)), así que una regla con esa métrica jamás podría disparar.
 
 export const TIPOS_VEHICULO = ["tractomula", "camion_rigido", "furgon", "van", "moto"];
 export const ESTADOS_VEHICULO = ["disponible", "en_ruta", "mantenimiento", "fuera_servicio"];
@@ -163,7 +167,6 @@ export const METRICAS = [
   "km_acumulados",
   "horas_motor",
   "nivel_combustible_pct",
-  "codigo_obd2",
 ];
 export const ESTADOS_PROGRAMA = [
   "pendiente",

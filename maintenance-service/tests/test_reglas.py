@@ -96,6 +96,30 @@ def test_metrica_desconocida_devuelve_422(cliente):
     assert respuesta.status_code == 422
 
 
+def test_codigo_obd2_no_se_puede_configurar(cliente):
+    """Defecto 3.3: codigo_obd2 se ofrecía en la UI pero no está en CAMPOS.
+
+    El payload de telemetry.aggregated trae `codigos_obd2` como LISTA de
+    códigos ("P0420"), y las reglas comparan umbrales numéricos
+    (dispara() hace float(valor)): una regla con esa métrica nunca podría
+    disparar — a añadirla a CAMPOS, float(lista) revienta y manda cada
+    evento de telemetría a la DLQ. Por eso se quita: ahora el intento de
+    configurarla responde 422 (un aviso) en vez de guardar en silencio una
+    regla que no hará nada.
+    """
+    respuesta = cliente.post(
+        "/api/v1/mantenimiento/reglas",
+        json={
+            "nombre": "codigos obd2",
+            "metrica": "codigo_obd2",
+            "umbral": 1,
+            "comparador": "mayor",
+            "prioridad": 3,
+        },
+    )
+    assert respuesta.status_code == 422
+
+
 def test_prioridad_fuera_de_rango_devuelve_422(cliente):
     respuesta = cliente.post(
         "/api/v1/mantenimiento/reglas",

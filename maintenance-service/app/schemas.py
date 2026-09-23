@@ -5,8 +5,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# codigo_obd2 fuera: el payload lo trae como lista de códigos ("P0420") y las
+# reglas comparan umbrales numéricos, así que no puede disparar nunca (3.3).
 MetricaLit = Literal[
-    "temperatura_motor_c", "km_acumulados", "horas_motor", "nivel_combustible_pct", "codigo_obd2"
+    "temperatura_motor_c", "km_acumulados", "horas_motor", "nivel_combustible_pct"
 ]
 TipoVehiculoLit = Literal["tractomula", "camion_rigido", "furgon", "van", "moto"]
 EstadoProgramaLit = Literal["pendiente", "programado", "en_taller", "completado", "cancelado"]
