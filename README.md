@@ -29,6 +29,27 @@ APIs aduaneras (Customs), ETL y esquema en estrella (Analytics) o son el núcleo
 transaccional con saga (Shipment). Estos dos, además, se hablan entre sí, así que
 el par demuestra REST síncrono + eventos + outbox + idempotencia + DLQ sin montar los diez.
 
+## Requisito: los dos repos, clonados uno al lado del otro
+
+El `docker-compose.yml` construye servicios de este repo **y** de
+`kevin-logitrack` (routing, shipment, tracking), cuya ruta se resuelve con
+`${RUTA_KEVIN:-../kevin-logitrack}`. Un clon aislado de este repo no arranca:
+Docker falla con `build path ... does not exist` sin explicar por qué. El árbol
+de carpetas debe ser este:
+
+```text
+logitrack-completo/
+├── logitrack/         <- este repo (fleet, maintenance, frontend)
+└── kevin-logitrack/   <- routing, shipment, tracking
+```
+
+Si la carpeta del otro repo se llama distinto no hay que editar nada: antes de
+levantar el stack, apunta `RUTA_KEVIN` a ella (PowerShell):
+
+```powershell
+$env:RUTA_KEVIN = '../como-se-llame'
+```
+
 ## Arrancar todo
 
 ```bash
