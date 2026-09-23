@@ -6,6 +6,7 @@ y se publican cuando vuelva: no se pierde ningún evento.
 
 import logging
 import time
+import uuid as uuid_mod
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -20,7 +21,14 @@ log = logging.getLogger("outbox")
 
 def encolar(db, tipo: str, agregado_id, datos: dict) -> OutboxEvento:
     """Se llama DENTRO de la transacción de negocio. No hace commit."""
-    fila = OutboxEvento(agregado_id=agregado_id, tipo=tipo, payload=datos)
+    fila = OutboxEvento(
+        # El event_id nace aquí, dentro de la transacción: es la identidad
+        # estable del evento, no algo que el publicador improvisara al volar.
+        event_id=uuid_mod.uuid4(),
+        agregado_id=agregado_id,
+        tipo=tipo,
+        payload=datos,
+    )
     db.add(fila)
     return fila
 
@@ -40,7 +48,7 @@ def _publicar_lote(canal) -> int:
                 tipo=fila.tipo,
                 agregado_id=fila.agregado_id,
                 datos=fila.payload,
-                event_id=str(fila.payload.get("event_id")) if fila.payload.get("event_id") else None,
+                event_id=str(fila.event_id),
             )
             bus.publicar(canal, settings.exchange_eventos, evento)
             fila.publicado_en = datetime.now(UTC)

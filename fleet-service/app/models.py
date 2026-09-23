@@ -113,6 +113,13 @@ class OutboxEvento(Base):
     __tablename__ = "outbox_eventos"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # Idempotencia del PUBLICADOR: se genera al encolar, dentro de la
+    # transacción de negocio, y no cambia nunca. Si el proceso publica y muere
+    # antes del commit que marca publicado_en, la republicación conserva el
+    # mismo event_id y los consumidores descartan el duplicado.
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, unique=True, index=True, default=uuid.uuid4
+    )
     agregado_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     tipo: Mapped[str] = mapped_column(String(60), nullable=False)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)

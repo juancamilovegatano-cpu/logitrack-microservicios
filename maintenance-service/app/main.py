@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.config import settings
-from app.database import Base, engine
+from app.database import Base, aplicar_ajustes_pendientes, engine
 from app.events import consumer, outbox
 from app.routers import mantenimiento
 
@@ -22,6 +22,8 @@ log = logging.getLogger(settings.service_name)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(engine)
+    # Ajustes de esquema pendientes para bases que ya existían (ver database.py)
+    aplicar_ajustes_pendientes(engine)
     if settings.events_enabled:
         threading.Thread(target=outbox.loop, daemon=True, name="outbox").start()
         threading.Thread(target=consumer.loop, daemon=True, name="consumer").start()

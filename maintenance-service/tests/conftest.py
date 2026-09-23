@@ -24,13 +24,21 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
 from app import models  # noqa: E402, F401  - registra las tablas en el metadata
-from app.database import Base, SessionLocal, engine  # noqa: E402
+from app.database import (  # noqa: E402
+    Base,
+    SessionLocal,
+    aplicar_ajustes_pendientes,
+    engine,
+)
 from app.main import app  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
 def esquema():
     Base.metadata.create_all(engine)
+    # test_db suele existir de antes: create_all no le añade columnas nuevas,
+    # así que aplicamos los mismos ajustes que aplicaría el arranque real.
+    aplicar_ajustes_pendientes(engine)
     yield
 
 

@@ -2,6 +2,7 @@
 
 import logging
 import time
+import uuid as uuid_mod
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -15,7 +16,14 @@ log = logging.getLogger("outbox")
 
 
 def encolar(db, tipo: str, agregado_id, datos: dict) -> OutboxEvento:
-    fila = OutboxEvento(agregado_id=agregado_id, tipo=tipo, payload=datos)
+    fila = OutboxEvento(
+        # El event_id nace aquí, dentro de la transacción: es la identidad
+        # estable del evento, no algo que el publicador improvisara al volar.
+        event_id=uuid_mod.uuid4(),
+        agregado_id=agregado_id,
+        tipo=tipo,
+        payload=datos,
+    )
     db.add(fila)
     return fila
 
@@ -31,7 +39,12 @@ def _publicar_lote(canal) -> int:
             .with_for_update(skip_locked=True)
         ).all()
         for fila in pendientes:
-            evento = bus.sobre(tipo=fila.tipo, agregado_id=fila.agregado_id, datos=fila.payload)
+            evento = bus.sobre(
+                tipo=fila.tipo,
+                agregado_id=fila.agregado_id,
+                datos=fila.payload,
+                event_id=str(fila.event_id),
+            )
             bus.publicar(canal, settings.exchange_eventos, evento)
             fila.publicado_en = datetime.now(UTC)
         db.commit()
