@@ -38,6 +38,9 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672" # consola web: logitrack / logitrack
+    # Sin volumen, los mensajes en tránsito se perdían al recrear el
+    # contenedor (defecto 4.7). Entra en vigor en el próximo `up -d`.
+    volumes: [rabbitmq_data:/var/lib/rabbitmq]
     healthcheck:
       # NO usar `rabbitmq-diagnostics`: arranca un nodo Erlang efímero que lee
       # /var/lib/rabbitmq/.erlang.cookie y, al correr en paralelo con el
@@ -229,6 +232,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  rabbitmq_data:
   fleet_data:
   maintenance_data:
   tracking_data:
