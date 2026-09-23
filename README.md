@@ -248,7 +248,7 @@ GET    /health · /ready
 
 ## Pruebas
 
-**61 pruebas** contra un PostgreSQL real, no contra SQLite ni dobles de la base: los modelos usan
+**93 pruebas** contra un PostgreSQL real, no contra SQLite ni dobles de la base: los modelos usan
 tipos propios de PostgreSQL (`UUID`, `JSONB`, `ENUM`) y una prueba que no los ejercita no dice nada
 sobre el esquema que se despliega.
 
@@ -257,11 +257,11 @@ docker compose up -d fleet-db maintenance-db     # basta con las bases
 
 cd fleet-service
 pip install -r requirements-dev.txt
-pytest                                            # 19 pruebas
+pytest                                            # 40 pruebas
 
 cd ../maintenance-service
 pip install -r requirements-dev.txt
-pytest                                            # 42 pruebas
+pytest                                            # 53 pruebas
 ```
 
 Cada conftest apunta a `test_db` de **su** base por defecto — `localhost:5432`
