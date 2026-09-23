@@ -11,12 +11,12 @@
 Uso:  python scripts/demo_e2e.py
 """
 
-import os
 import json
+import os
 import sys
 import time
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pika
 import requests
@@ -53,7 +53,7 @@ def main():
             "capacidad_kg": 8000,
             "capacidad_m3": 30,
             "anio": 2021,
-            "vencimiento_seguro": str(date.today() + timedelta(days=200)),
+            "vencimiento_seguro": str(date.today() + timedelta(days=200)),  # noqa: DTZ011 - fecha de calendario, no instante
             "refrigerado": True,
             "zona_operacion": "montería",
         },
@@ -86,7 +86,7 @@ def main():
     evento = {
         "event_id": str(uuid.uuid4()),
         "event_type": "telemetry.aggregated",
-        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "occurred_at": datetime.now(UTC).isoformat(),
         "producer": "tracking-service",
         "trace_id": uuid.uuid4().hex,
         "payload": {
@@ -146,7 +146,7 @@ def main():
         f"{MAINT}/api/v1/mantenimiento/intervenciones",
         json={
             "programa_id": alerta["id"],
-            "realizado_en": datetime.now(timezone.utc).isoformat(),
+            "realizado_en": datetime.now(UTC).isoformat(),
             "costo": 1850000,
             "taller": "Taller Central Montería",
             "km_al_servicio": 84300,
@@ -199,7 +199,7 @@ def main():
             "capacidad_kg": 34000,
             "capacidad_m3": 90,
             "anio": 2019,
-            "vencimiento_seguro": str(date.today() + timedelta(days=300)),
+            "vencimiento_seguro": str(date.today() + timedelta(days=300)),  # noqa: DTZ011 - fecha de calendario, no instante
             "certificado_hazmat": True,
             "zona_operacion": "montería",
         },
@@ -227,7 +227,7 @@ def main():
     evento_t = {
         "event_id": str(uuid.uuid4()),
         "event_type": "telemetry.aggregated",
-        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "occurred_at": datetime.now(UTC).isoformat(),
         "producer": "tracking-service",
         "trace_id": uuid.uuid4().hex,
         # OJO: el evento NO trae "tipo_vehiculo". Sin la llamada síncrona a

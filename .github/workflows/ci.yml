@@ -40,8 +40,10 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Lint
-        working-directory: ${{ matrix.servicio }}
-        run: ruff check app tests
+        # Desde la raíz del repo: además de app/ y tests/ de los dos
+        # servicios, incluye scripts/, que hasta ahora quedaba fuera
+        # (defecto 4.9), con la misma ruff.toml (ya con E501).
+        run: ruff check .
 
       - name: Pruebas unitarias y de integracion (pytest contra PostgreSQL real)
         working-directory: ${{ matrix.servicio }}

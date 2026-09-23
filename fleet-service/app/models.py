@@ -92,8 +92,12 @@ class Asignacion(Base):
     __tablename__ = "asignaciones"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    vehiculo_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehiculos.id"), nullable=False)
-    conductor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("conductores.id"), nullable=False)
+    vehiculo_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vehiculos.id"), nullable=False
+    )
+    conductor_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("conductores.id"), nullable=False
+    )
     desde: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     hasta: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

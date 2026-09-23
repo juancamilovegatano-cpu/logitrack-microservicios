@@ -42,7 +42,7 @@ def main():
                 "capacidad_kg": kg,
                 "capacidad_m3": m3,
                 "anio": anio,
-                "vencimiento_seguro": str(date.today() + timedelta(days=300)),
+                "vencimiento_seguro": str(date.today() + timedelta(days=300)),  # noqa: DTZ011 - fecha de calendario, no instante
                 "refrigerado": refrigerado,
                 "certificado_hazmat": hazmat,
                 "zona_operacion": zona,

@@ -67,7 +67,7 @@ def test_sobre_reutiliza_el_trace_id_cuando_lo_recibe():
 
 
 def test_encolar_conserva_el_trace_id_hasta_el_sobre_publicado(db):
-    fila = outbox.encolar(
+    outbox.encolar(
         db, "maintenance.alert", uuid.uuid4(), {"placa": "ABC123"}, trace_id="traza-abc"
     )
     db.commit()
