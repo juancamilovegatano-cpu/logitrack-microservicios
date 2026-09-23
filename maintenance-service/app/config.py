@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     outbox_batch_size: int = 100
     events_enabled: bool = True
 
+    # Orígenes del frontend autorizados a llamar esta API desde el navegador
+    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:4173"]
+
     # Ventana de "próximo mantenimiento" por defecto en días
     dias_proximos_default: int = 90
 

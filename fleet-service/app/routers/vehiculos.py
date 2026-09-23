@@ -11,6 +11,21 @@ from app.models import Vehiculo
 router = APIRouter(prefix="/api/v1/vehiculos", tags=["vehiculos"])
 
 
+@router.get("", response_model=schemas.PaginaVehiculos)
+def listar(
+    estado: schemas.EstadoVehiculoLit | None = None,
+    tipo: schemas.TipoVehiculoLit | None = None,
+    zona: str | None = None,
+    placa: str | None = Query(default=None, max_length=10),
+    limite: int = Query(default=50, ge=1, le=200),
+    desplazamiento: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Catálogo completo en cualquier estado. Lo consume el panel de operaciones."""
+    items, total = crud.listar_vehiculos(db, estado, tipo, zona, placa, limite, desplazamiento)
+    return {"total": total, "limite": limite, "desplazamiento": desplazamiento, "items": items}
+
+
 @router.get("/disponibles", response_model=list[schemas.VehiculoOut])
 def listar_disponibles(
     tipo: schemas.TipoVehiculoLit | None = None,

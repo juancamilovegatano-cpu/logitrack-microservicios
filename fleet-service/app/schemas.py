@@ -19,7 +19,6 @@ class VehiculoCrear(BaseModel):
     refrigerado: bool = False
     certificado_hazmat: bool = False
     zona_operacion: str = "montería"
-    km_actual: int = 0
 
 
 class VehiculoOut(BaseModel):
@@ -36,7 +35,16 @@ class VehiculoOut(BaseModel):
     refrigerado: bool
     certificado_hazmat: bool
     zona_operacion: str
-    km_actual: int
+
+
+class PaginaVehiculos(BaseModel):
+    """Página del catálogo. `total` es el número de filas que cumplen el filtro,
+    no las devueltas: sin él el cliente no puede dibujar la paginación."""
+
+    total: int
+    limite: int
+    desplazamiento: int
+    items: list[VehiculoOut]
 
 
 class CambioEstado(BaseModel):

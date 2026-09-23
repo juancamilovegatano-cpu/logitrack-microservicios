@@ -1,8 +1,8 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, selectinload
 
 from app.events.outbox import encolar
 from app.models import Asignacion, Conductor, EventoProcesado, Vehiculo
@@ -12,6 +12,52 @@ HORAS_MAX_SEMANA = 60  # tope legal usado como regla de disponibilidad
 
 def obtener_vehiculo(db: Session, vehiculo_id: uuid.UUID) -> Vehiculo | None:
     return db.get(Vehiculo, vehiculo_id)
+
+
+def listar_vehiculos(
+    db: Session,
+    estado: str | None = None,
+    tipo: str | None = None,
+    zona: str | None = None,
+    placa: str | None = None,
+    limite: int = 50,
+    desplazamiento: int = 0,
+) -> tuple[list[Vehiculo], int]:
+    """Listado paginado del catálogo completo, en CUALQUIER estado.
+
+    NO está en la ficha 3.2 del documento: `disponibles` filtra por definición
+    `estado == disponible`, así que un panel de operaciones no podría ver — ni
+    devolver a servicio — un vehículo que una alerta mandó a 'mantenimiento'.
+
+    Devuelve (página, total) para que el cliente pueda paginar sin adivinar.
+    """
+    filtros = []
+    if estado:
+        filtros.append(Vehiculo.estado == estado)
+    if tipo:
+        filtros.append(Vehiculo.tipo == tipo)
+    if zona:
+        filtros.append(Vehiculo.zona_operacion == zona)
+    if placa:
+        filtros.append(Vehiculo.placa.ilike(f"%{placa}%"))
+
+    total = db.scalar(select(func.count()).select_from(Vehiculo).where(*filtros)) or 0
+    pagina = db.scalars(
+        select(Vehiculo)
+        .where(*filtros)
+        .order_by(Vehiculo.placa)
+        .limit(limite)
+        .offset(desplazamiento)
+    ).all()
+    return list(pagina), total
+
+
+def listar_conductores(db: Session, nombre: str | None = None) -> list[Conductor]:
+    """Catálogo de conductores. selectinload evita el N+1 sobre categorías."""
+    q = select(Conductor).options(selectinload(Conductor.categorias))
+    if nombre:
+        q = q.where(Conductor.nombre.ilike(f"%{nombre}%"))
+    return list(db.scalars(q.order_by(Conductor.nombre)).all())
 
 
 def vehiculos_disponibles(

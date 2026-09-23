@@ -3,6 +3,7 @@ import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -29,6 +30,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="LogiTrack — Fleet Service", version="1.0.0", lifespan=lifespan)
+# El frontend corre en otro origen (otro puerto), así que el navegador exige
+# CORS para dejarlo llamar a esta API. Sin esto, cualquier fetch desde el
+# dashboard se bloquea antes de salir, aunque la API funcione perfectamente.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(vehiculos.router)
 app.include_router(conductores.router)
 

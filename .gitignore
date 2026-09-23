@@ -1,7 +1,15 @@
-﻿__pycache__/
+__pycache__/
 *.pyc
 .env
 .venv/
+
+# Cachés de herramientas
+.ruff_cache/
+.pytest_cache/
+
+# Frontend
+node_modules/
+dist/
 
 # Auxiliares locales, no forman parte del entregable
 logitrack-run.log

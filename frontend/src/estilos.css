@@ -1,0 +1,838 @@
+/* LogiTrack — panel de operaciones.
+   Paleta tomada del documento de arquitectura. Sin framework: los tokens de
+   :root son todo el sistema de diseño, y el bloque de prefers-color-scheme los
+   redefine para modo oscuro. */
+
+:root {
+  --azul-900: #0d2b52;
+  --azul-800: #12365e;
+  --azul-600: #1f5fb0;
+  --azul-500: #3b7dd8;
+  --azul-100: #e3edfa;
+
+  --fondo: #f4f6fa;
+  --superficie: #ffffff;
+  --superficie-2: #f8fafc;
+  --borde: #dde3ec;
+  --borde-fuerte: #c3cdda;
+
+  --texto: #16202e;
+  --texto-tenue: #64748b;
+
+  --verde: #15803d;
+  --verde-fondo: #dcfce7;
+  --ambar: #a16207;
+  --ambar-fondo: #fef3c7;
+  --rojo: #b91c1c;
+  --rojo-fondo: #fee2e2;
+  --morado: #6d28d9;
+  --morado-fondo: #ede9fe;
+  --gris-fondo: #eef1f6;
+
+  --radio: 10px;
+  --radio-menor: 6px;
+  --sombra: 0 1px 2px rgb(15 23 42 / 6%), 0 4px 12px rgb(15 23 42 / 6%);
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --azul-100: #1c3252;
+    --azul-500: #60a5fa;
+    --azul-600: #3b82f6;
+
+    --fondo: #0b1220;
+    --superficie: #121a2a;
+    --superficie-2: #0f1827;
+    --borde: #22304a;
+    --borde-fuerte: #33455f;
+
+    --texto: #e6edf7;
+    --texto-tenue: #94a3b8;
+
+    --verde: #4ade80;
+    --verde-fondo: #14321f;
+    --ambar: #fbbf24;
+    --ambar-fondo: #3a2c0a;
+    --rojo: #f87171;
+    --rojo-fondo: #3b1519;
+    --morado: #c4b5fd;
+    --morado-fondo: #2a1f47;
+    --gris-fondo: #1b2537;
+
+    --sombra: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 14px rgb(0 0 0 / 30%);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------------------------------------- cabecera */
+
+/* Clase explícita en vez del selector de etiqueta `header`: los paneles y los
+   modales también usan <header>, y una regla por etiqueta se los pintaba de
+   azul oscuro por encima de su propio fondo. */
+.cabecera-app {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px max(16px, 4vw);
+  background: var(--azul-900);
+  color: #fff;
+}
+
+.cabecera-app h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.cabecera-app h1 span {
+  color: var(--azul-500);
+}
+
+.cabecera-app .sub {
+  font-size: 12.5px;
+  color: #a9c2e4;
+}
+
+.estado-servicios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pastilla {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  padding: 5px 11px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 8%);
+  font-size: 12px;
+}
+
+.pastilla .tenue {
+  color: #a9c2e4;
+}
+
+.punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  flex: none;
+}
+
+.punto.ok {
+  background: #4ade80;
+  box-shadow: 0 0 0 3px rgb(74 222 128 / 20%);
+}
+
+.punto.mal {
+  background: #f87171;
+  box-shadow: 0 0 0 3px rgb(248 113 113 / 20%);
+}
+
+/* --------------------------------------------------------------- tabs */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  padding: 0 max(16px, 4vw);
+  border-bottom: 1px solid var(--borde);
+  background: var(--superficie);
+}
+
+.tabs button {
+  padding: 13px 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--texto-tenue);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tabs button:hover {
+  color: var(--texto);
+}
+
+.tabs button.activa {
+  border-bottom-color: var(--azul-600);
+  color: var(--azul-600);
+}
+
+.subtabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.subtabs button {
+  padding: 7px 13px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--superficie);
+  color: var(--texto-tenue);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.subtabs button.activa {
+  border-color: var(--azul-600);
+  background: var(--azul-100);
+  color: var(--azul-600);
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------------- layout */
+
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 22px max(16px, 4vw) 40px;
+}
+
+.panel {
+  padding: 20px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.panel-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.panel-cabecera h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.descripcion {
+  max-width: 78ch;
+  margin: 6px 0 0;
+  color: var(--texto-tenue);
+  font-size: 13px;
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.subtitulo {
+  margin: 22px 0 10px;
+  font-size: 14px;
+}
+
+.pie {
+  padding: 0 max(16px, 4vw) 28px;
+  color: var(--texto-tenue);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------- botones */
+
+.boton {
+  padding: 8px 14px;
+  border: 1px solid var(--azul-600);
+  border-radius: var(--radio-menor);
+  background: var(--azul-600);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.boton:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.boton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.boton.fantasma {
+  border-color: var(--borde-fuerte);
+  background: var(--superficie);
+  color: var(--texto);
+}
+
+.boton.menor {
+  padding: 5px 10px;
+  font-size: 12.5px;
+}
+
+/* -------------------------------------------------------------- avisos */
+
+.aviso {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 10px 13px;
+  border: 1px solid;
+  border-radius: var(--radio-menor);
+  font-size: 13px;
+}
+
+.aviso.info {
+  border-color: var(--azul-500);
+  background: var(--azul-100);
+  color: var(--texto);
+}
+
+.aviso.ok {
+  border-color: var(--verde);
+  background: var(--verde-fondo);
+  color: var(--texto);
+}
+
+.aviso.alerta {
+  border-color: var(--ambar);
+  background: var(--ambar-fondo);
+  color: var(--texto);
+}
+
+.aviso.error {
+  border-color: var(--rojo);
+  background: var(--rojo-fondo);
+  color: var(--texto);
+}
+
+.cerrar {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.cerrar:hover {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------ estados vacíos */
+
+.cargando,
+.vacio {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 34px;
+  color: var(--texto-tenue);
+  font-size: 13px;
+}
+
+.girando {
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--borde-fuerte);
+  border-top-color: var(--azul-600);
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .girando {
+    animation-duration: 2.4s;
+  }
+}
+
+/* --------------------------------------------------------------- tabla */
+
+.tabla-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-menor);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--borde);
+  background: var(--superficie-2);
+  color: var(--texto-tenue);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--borde);
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+tbody tr:hover {
+  background: var(--superficie-2);
+}
+
+.vacio-celda {
+  padding: 30px;
+  color: var(--texto-tenue);
+  text-align: center;
+}
+
+.acciones-fila {
+  display: flex;
+  gap: 6px;
+  /* sin align-items el botón se estira a lo alto de la fila cuando la celda
+     de al lado tiene un motivo de varias líneas */
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.motivo {
+  max-width: 34ch;
+}
+
+.pie-tabla {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 12.5px;
+}
+
+.paginacion {
+  display: flex;
+  gap: 6px;
+}
+
+/* ----------------------------------------------------------- etiquetas */
+
+.etiqueta {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--gris-fondo);
+  color: var(--texto-tenue);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.etiqueta.verde {
+  background: var(--verde-fondo);
+  color: var(--verde);
+}
+
+.etiqueta.azul {
+  background: var(--azul-100);
+  color: var(--azul-600);
+}
+
+.etiqueta.ambar {
+  background: var(--ambar-fondo);
+  color: var(--ambar);
+}
+
+.etiqueta.rojo {
+  background: var(--rojo-fondo);
+  color: var(--rojo);
+}
+
+.etiqueta.morado {
+  background: var(--morado-fondo);
+  color: var(--morado);
+}
+
+.id {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-menor);
+  background: var(--superficie-2);
+  color: var(--texto-tenue);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.id:hover {
+  border-color: var(--azul-500);
+  color: var(--azul-600);
+}
+
+.id .icono {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* --------------------------------------------------------- tipografía */
+
+.mono {
+  font-family: var(--mono);
+  font-size: 0.93em;
+}
+
+.tenue {
+  color: var(--texto-tenue);
+}
+
+.fuerte {
+  font-weight: 650;
+}
+
+.alerta-texto {
+  color: var(--rojo);
+  font-weight: 600;
+}
+
+.ok-texto {
+  color: var(--verde);
+  font-weight: 600;
+}
+
+code.mono {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--gris-fondo);
+}
+
+/* -------------------------------------------------------------- campos */
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.etiqueta-campo {
+  color: var(--texto-tenue);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.ayuda {
+  color: var(--texto-tenue);
+  font-size: 11.5px;
+}
+
+input,
+select,
+textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-menor);
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 13px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--azul-500);
+  outline: 2px solid var(--azul-100);
+}
+
+input:disabled,
+select:disabled {
+  background: var(--superficie-2);
+  color: var(--texto-tenue);
+  cursor: not-allowed;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.casillas {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-height: 34px;
+}
+
+.casillas.envolver {
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.casillas label,
+.conmutador {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.conmutador {
+  align-self: flex-end;
+  margin-bottom: 14px;
+  white-space: nowrap;
+}
+
+input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--azul-600);
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+
+.filtros .campo {
+  min-width: 150px;
+  margin-bottom: 0;
+}
+
+.filtros .boton {
+  margin-bottom: 1px;
+}
+
+/* ------------------------------------------------------------ rejillas */
+
+.rejilla {
+  display: grid;
+  gap: 0 14px;
+}
+
+.rejilla.dos {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.rejilla.datos {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-menor);
+  background: var(--superficie-2);
+}
+
+.rejilla.datos > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.rejilla.datos.compacta {
+  font-size: 12.5px;
+}
+
+/* --------------------------------------------------------------- modal */
+
+.fondo-modal {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 5vh 16px;
+  overflow-y: auto;
+  background: rgb(8 15 30 / 55%);
+  inset: 0;
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  width: 100%;
+  max-width: 680px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  box-shadow: 0 20px 50px rgb(8 15 30 / 35%);
+}
+
+.modal-cabecera {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.modal-cabecera h3 {
+  margin: 0;
+  font-size: 15.5px;
+}
+
+.modal-cuerpo {
+  padding: 20px;
+}
+
+.acciones-formulario {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--borde);
+}
+
+/* ---------------------------------------------------------- veredicto */
+
+.veredicto {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px;
+  border: 1px solid;
+  border-radius: var(--radio-menor);
+}
+
+.veredicto strong {
+  font-size: 15px;
+}
+
+.veredicto span {
+  color: var(--texto-tenue);
+  font-size: 13px;
+}
+
+.veredicto.si {
+  border-color: var(--verde);
+  background: var(--verde-fondo);
+}
+
+.veredicto.no {
+  border-color: var(--ambar);
+  background: var(--ambar-fondo);
+}
+
+/* ------------------------------------------------------------ circuito */
+
+.circuito {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.estado-circuito {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-menor);
+  background: var(--superficie-2);
+  opacity: 0.6;
+}
+
+.estado-circuito span {
+  color: var(--texto-tenue);
+  font-size: 12.5px;
+}
+
+.estado-circuito.activo {
+  border-color: var(--azul-600);
+  border-width: 2px;
+  background: var(--azul-100);
+  opacity: 1;
+}
+
+.estado-circuito .marca {
+  color: var(--azul-600);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.estado-circuito .cuenta {
+  color: var(--ambar);
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------- móviles */
+
+@media (width <= 620px) {
+  .panel {
+    padding: 15px;
+  }
+
+  .panel-cabecera,
+  .acciones {
+    width: 100%;
+  }
+
+  .acciones .boton {
+    flex: 1;
+  }
+
+  .filtros .campo {
+    min-width: 100%;
+  }
+
+  .acciones-fila {
+    justify-content: flex-start;
+  }
+}

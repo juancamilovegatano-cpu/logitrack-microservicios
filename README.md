@@ -44,6 +44,53 @@ python scripts/demo_e2e.py   # prueba end-to-end de los 9 pasos
 - Maintenance: http://localhost:8002/docs
 - RabbitMQ: http://localhost:15672 (logitrack / logitrack)
 
+## Frontend
+
+Dashboard en React + Vite que consume los dos microservicios. Vive en `frontend/` y es
+independiente: no se mezcla con el código de los servicios.
+
+```bash
+docker compose up -d          # los backends primero
+
+cd frontend
+cp .env.example .env
+npm install                   # solo la primera vez
+npm run dev                   # http://localhost:5173
+```
+
+Cuatro pestañas que cubren **todos** los endpoints de los dos servicios:
+
+| Pestaña | Qué muestra | Endpoints que consume |
+|---|---|---|
+| **Flota** | Catálogo con filtros y paginación, alta de vehículos, cambio de estado (que encola `vehicle.status_changed` en el outbox) y ficha combinada | `GET /vehiculos`, `/disponibles`, `/{id}`, `POST /vehiculos`, `PATCH /{id}/estado`, `GET /mantenimiento/vehiculo/{id}/ficha` |
+| **Conductores** | Catálogo con búsqueda, alta con categorías de licencia y consulta de disponibilidad | `GET /conductores`, `POST /conductores`, `GET /conductores/{id}/disponibilidad` |
+| **Mantenimiento** | Alertas abiertas y cerradas, calendario de preventivos, catálogo de reglas, alta de reglas y registro de intervenciones | `GET /alertas`, `/proximos`, `/reglas`, `POST /reglas`, `POST /intervenciones` |
+| **Comunicación síncrona** | Estado del circuit breaker en vivo con cuenta atrás, la política de resiliencia y un botón que provoca los 5 fallos que lo abren | `GET /mantenimiento/dependencias`, `/vehiculo/{id}/ficha` |
+
+Esa última pestaña es la demostración del patrón: con el circuito abierto, la consulta
+responde en ~0 ms en lugar de ~3.300 ms, porque ni siquiera intenta la conexión.
+
+**Cambios que el panel exigió en el backend**
+
+1. **CORS.** Un navegador bloquea las
+peticiones entre orígenes distintos (`:5173` → `:8001`) salvo que el servidor lo autorice
+explícitamente. Son cuatro líneas en cada `main.py` y la lista de orígenes permitidos está en
+`config.py` (`cors_origins`), configurable por variable de entorno.
+
+2. **Dos listados nuevos en Fleet** — `GET /api/v1/vehiculos` y `GET /api/v1/conductores`.
+   No están en la ficha 3.2 del documento y son una desviación consciente: `/disponibles`
+   filtra por definición `estado == disponible`, así que sin un listado general el panel no
+   podría ver — ni devolver a servicio — justo los vehículos que una alerta acaba de mandar a
+   `mantenimiento`. Lo mismo con los conductores: sin listado no se puede consultar la
+   disponibilidad de nadie sin conocer su UUID de memoria. Cubiertos por
+   `fleet-service/tests/test_catalogo.py`.
+
+Ningún modelo, evento ni prueba existente cambió.
+
+El dashboard llama a los dos servicios directamente. En el diseño completo habría un API
+Gateway al frente y el frontend conocería una sola dirección; con dos servicios en local se
+llaman directo para no montar un componente que está fuera del alcance de esta entrega.
+
 ## Colección de Postman
 
 [`docs/LogiTrack.postman_collection.json`](docs/LogiTrack.postman_collection.json) — 19 peticiones
@@ -144,10 +191,12 @@ Tracking (simulado) --telemetry.aggregated--> Maintenance
 
 ### Fleet Service (8001)
 ```
+GET    /api/v1/vehiculos?estado=&tipo=&zona=&placa=&limite=&desplazamiento=   <- catálogo completo
 GET    /api/v1/vehiculos/disponibles?tipo=&zona=&capacidad_min_kg=&refrigerado=&hazmat=
 GET    /api/v1/vehiculos/{id}
 POST   /api/v1/vehiculos
 PATCH  /api/v1/vehiculos/{id}/estado
+GET    /api/v1/conductores?nombre=
 POST   /api/v1/conductores
 GET    /api/v1/conductores/{id}/disponibilidad
 GET    /health · /ready

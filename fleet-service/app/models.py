@@ -47,8 +47,6 @@ class Vehiculo(Base):
     # NO está en el ER del documento; se agrega porque el endpoint
     # GET /vehiculos/disponibles?zona= no se puede resolver sin ella.
     zona_operacion: Mapped[str] = mapped_column(String(60), nullable=False, default="montería")
-    km_actual: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
-    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     asignaciones: Mapped[list["Asignacion"]] = relationship(back_populates="vehiculo")
 

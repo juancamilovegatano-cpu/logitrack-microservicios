@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -20,6 +20,16 @@ def _salida(conductor: Conductor) -> dict:
         "horas_conducidas_semana": conductor.horas_conducidas_semana,
         "categorias": sorted(c.categoria for c in conductor.categorias),
     }
+
+
+@router.get("", response_model=list[schemas.ConductorOut])
+def listar(
+    nombre: str | None = Query(default=None, max_length=120),
+    db: Session = Depends(get_db),
+):
+    """Catálogo de conductores. Tampoco está en la ficha 3.2: sin él el panel
+    no puede consultar la disponibilidad de nadie sin conocer su UUID de memoria."""
+    return [_salida(c) for c in crud.listar_conductores(db, nombre)]
 
 
 @router.post("", response_model=schemas.ConductorOut, status_code=status.HTTP_201_CREATED)
