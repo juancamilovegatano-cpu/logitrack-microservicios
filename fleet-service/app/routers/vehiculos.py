@@ -53,8 +53,13 @@ def crear(datos: schemas.VehiculoCrear, response: Response, db: Session = Depend
     db.add(vehiculo)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
+        # Solo 23505 (unique_violation) es un conflicto de negocio: el resto
+        # (clave ajena, CHECK, NOT NULL...) es fallo del servidor y debe
+        # llegar como 500, no disfrazado de 409 (defecto 4.3).
+        if getattr(exc.orig, "pgcode", None) != "23505":
+            raise
         raise HTTPException(
             409, {"error": "placa_duplicada", "mensaje": datos.placa}
         ) from None

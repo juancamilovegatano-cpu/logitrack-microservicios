@@ -43,8 +43,12 @@ def crear(datos: schemas.ConductorCrear, db: Session = Depends(get_db)):
     db.add(conductor)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
+        # Solo 23505 (unique_violation) es un conflicto de negocio: el resto
+        # es fallo del servidor y debe llegar como 500 (defecto 4.3).
+        if getattr(exc.orig, "pgcode", None) != "23505":
+            raise
         raise HTTPException(
             409, {"error": "licencia_duplicada", "mensaje": datos.numero_licencia}
         ) from None
