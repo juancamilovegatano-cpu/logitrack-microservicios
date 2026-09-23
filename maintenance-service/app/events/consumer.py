@@ -125,7 +125,7 @@ def manejar(evento: dict):
         detalle = f"{detalle} [datos de: {origen_datos}]"
         crud.marcar_procesado(db, event_id, tipo, detalle)
         db.commit()
-        log.info("procesado %s (%s): %s", tipo, event_id, detalle)
+        log.info("procesado %s (%s) trace=%s: %s", tipo, event_id, trace_id, detalle)
     except Exception:
         db.rollback()
         raise

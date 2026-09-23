@@ -116,7 +116,7 @@ def manejar(evento: dict):
         # el registro de idempotencia y el cambio de estado van juntos
         crud.marcar_procesado(db, event_id, tipo, detalle)
         db.commit()
-        log.info("procesado %s (%s): %s", tipo, event_id, detalle)
+        log.info("procesado %s (%s) trace=%s: %s", tipo, event_id, trace_id, detalle)
     except Exception:
         db.rollback()
         raise

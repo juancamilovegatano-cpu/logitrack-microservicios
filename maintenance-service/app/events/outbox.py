@@ -57,6 +57,12 @@ def _publicar_lote(canal) -> int:
             )
             bus.publicar(canal, settings.exchange_eventos, evento)
             fila.publicado_en = datetime.now(UTC)
+            log.info(
+                "publicado %s (%s) trace=%s",
+                evento["event_type"],
+                evento["event_id"],
+                evento["trace_id"],
+            )
         db.commit()
         return len(pendientes)
     finally:
