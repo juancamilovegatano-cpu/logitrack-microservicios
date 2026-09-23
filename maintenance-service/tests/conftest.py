@@ -14,8 +14,16 @@ timeouts, 404 y el circuito abierto.
 
 import os
 
+# Host y puerto por variable de entorno, con el defecto de ESTE servicio:
+# Maintenance vive en el 5433 (su base está ahí, no en el 5432 de Fleet);
+# hasta esta corrección los tests de Maintenance se conectaban por error al
+# 5432 y usaban la test_db de Fleet por accidente.
+_HOST = os.environ.get("TEST_DB_HOST", "localhost")
+_PUERTO = os.environ.get("TEST_DB_PUERTO", "5433")
+_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "logitrack")
 os.environ.setdefault(
-    "DATABASE_URL", "postgresql+psycopg2://logitrack:logitrack@localhost:5432/test_db"
+    "DATABASE_URL",
+    f"postgresql+psycopg2://logitrack:{_PASSWORD}@{_HOST}:{_PUERTO}/test_db",
 )
 os.environ["EVENTS_ENABLED"] = "false"
 
@@ -33,8 +41,33 @@ from app.database import (  # noqa: E402
 from app.main import app  # noqa: E402
 
 
+def _crear_base_si_falta():
+    """Un repo recién clonado no tiene `test_db` en el 5433: la crea si falta.
+
+    Conecta al catálogo `postgres` del MISMO servidor al que apunta la URL de
+    los tests y ejecuta CREATE DATABASE solo si el nombre no existe. Así
+    `python -m pytest` funciona con el compose arriba y nada más (defecto 2.3).
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine import make_url
+
+    url = make_url(os.environ["DATABASE_URL"])
+    motor_admin = create_engine(url.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    try:
+        with motor_admin.connect() as conexion:
+            existe = conexion.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = :nombre"),
+                {"nombre": url.database},
+            ).scalar()
+            if not existe:
+                conexion.execute(text(f'CREATE DATABASE "{url.database}"'))
+    finally:
+        motor_admin.dispose()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def esquema():
+    _crear_base_si_falta()
     Base.metadata.create_all(engine)
     # test_db suele existir de antes: create_all no le añade columnas nuevas,
     # así que aplicamos los mismos ajustes que aplicaría el arranque real.

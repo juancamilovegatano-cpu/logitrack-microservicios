@@ -233,7 +233,11 @@ pip install -r requirements-dev.txt
 pytest                                            # 42 pruebas
 ```
 
-Por defecto apuntan a `test_db` en `localhost:5432`; se cambia con `DATABASE_URL`.
+Cada conftest apunta a `test_db` de **su** base por defecto — `localhost:5432`
+en Fleet y `localhost:5433` en Maintenance — y la crea si no existe: con el
+compose arriba, `pytest` funciona recién clonado. El host y el puerto se
+cambian con `TEST_DB_HOST` / `TEST_DB_PUERTO`, o la URL completa con
+`DATABASE_URL`.
 
 | Archivo | Qué cubre |
 |---|---|
