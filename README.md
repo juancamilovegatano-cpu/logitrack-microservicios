@@ -142,12 +142,19 @@ Los dos servicios implementan los dos estilos.
 ```
 Maintenance --maintenance.alert-->     Fleet     (saca el vehículo de servicio)
 Maintenance --maintenance.completed--> Fleet     (lo devuelve a disponible)
+Maintenance --maintenance.scheduled--> nadie     (publicado, sin consumidores)
 Fleet       --vehicle.status_changed-> (Routing) (recalcula rutas)
 Tracking    --telemetry.aggregated-->  Maintenance
 ```
 
 Con outbox, idempotencia por `event_id`, reintentos y DLQ. Ninguno de los dos
 espera al otro: si el destinatario está caído, el mensaje queda en la cola.
+
+`maintenance.scheduled` (lo publica `crud.programar()` al pasar un programa a
+`programado`) **está publicado, sin consumidores actuales**: hoy no hay ningún
+servicio bindeado a esa routing key. Es parte del contrato —el sobre y el
+vocabulario no cambian—, pero queda dicho aquí para que nadie asuma que
+desencadena algo: quien quiera oírlo solo tiene que bindear su cola.
 
 ### SÍNCRONO — REST de Maintenance hacia Fleet
 
