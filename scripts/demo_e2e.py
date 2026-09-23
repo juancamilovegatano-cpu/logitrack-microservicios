@@ -21,6 +21,8 @@ from datetime import UTC, date, datetime, timedelta
 import pika
 import requests
 
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 FLEET = os.getenv("FLEET_URL", "http://localhost:8001")
 MAINT = os.getenv("MAINT_URL", "http://localhost:8006")  # 8002 es de tracking-service
 AMQP = "amqp://logitrack:logitrack@localhost:5672/"
