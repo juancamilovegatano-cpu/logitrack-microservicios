@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Carga datos iniciales: 6 vehículos, 3 conductores y 4 reglas de mantenimiento."""
 
+import os
 from datetime import date, timedelta
 
 import requests
 
-FLEET = "http://localhost:8001"
-MAINT = "http://localhost:8002"
+FLEET = os.getenv("FLEET_URL", "http://localhost:8001")
+MAINT = os.getenv("MAINT_URL", "http://localhost:8006")  # 8002 es de tracking-service
 
 VEHICULOS = [
     ("ABC123", "tractomula", 34000, 90, 2019, False, True, "montería"),

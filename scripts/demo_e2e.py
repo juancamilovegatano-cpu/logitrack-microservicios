@@ -11,6 +11,7 @@
 Uso:  python scripts/demo_e2e.py
 """
 
+import os
 import json
 import sys
 import time
@@ -20,8 +21,8 @@ from datetime import date, datetime, timedelta, timezone
 import pika
 import requests
 
-FLEET = "http://localhost:8001"
-MAINT = "http://localhost:8002"
+FLEET = os.getenv("FLEET_URL", "http://localhost:8001")
+MAINT = os.getenv("MAINT_URL", "http://localhost:8006")  # 8002 es de tracking-service
 AMQP = "amqp://logitrack:logitrack@localhost:5672/"
 EXCHANGE_EVENTOS = "logitrack.events"
 
